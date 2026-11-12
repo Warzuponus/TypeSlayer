@@ -1,4 +1,4 @@
-# Vampire Hunter Typing
+# TypeSlayer the Vampire Hunter
 
 A browser typing game for kids aged 8 to 11. Cartoon vampires walk toward the hunter carrying letters or words, and typing them fires the crossbow. The goal is fast touch typing without looking at the keys.
 

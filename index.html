@@ -1,4 +1,4 @@
-<title>Vampire Hunter Typing</title>
+<title>TypeSlayer the Vampire Hunter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Fredoka:wght@500;600;700&display=swap">
 <style>
@@ -761,9 +761,12 @@
     // ---------- Menus: profiles, naming, modes ----------
     clearMenu() { this.menu.forEach(o => o.destroy()); this.menu = []; this.hidePanel(); }
     logo(sub) {
-      const l = this.txt(640, 74, 'VAMPIRE HUNTER', { fontFamily: TITLE_FONT, fontSize: '92px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 10 })
+      const l = this.txt(640, 64, 'TYPESLAYER', { fontFamily: TITLE_FONT, fontSize: '88px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 10 })
         .setOrigin(0.5).setDepth(2900);
-      const s = this.txt(640, 136, sub, { fontSize: '24px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 })
+      const t = this.txt(640, 113, 'THE VAMPIRE HUNTER', { fontFamily: TITLE_FONT, fontSize: '26px', color: '#ff8fb0', stroke: '#3b1a5a', strokeThickness: 6 })
+        .setOrigin(0.5).setDepth(2900);
+      this.menu.push(t);
+      const s = this.txt(640, 146, sub, { fontSize: '24px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 })
         .setOrigin(0.5).setDepth(2900);
       this.menu.push(l, s);
     }
