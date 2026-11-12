@@ -1,0 +1,1581 @@
+<title>Vampire Hunter Typing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Fredoka:wght@500;600;700&display=swap">
+<style>
+  /* Single dark "moonlit graveyard" look on purpose: the game always plays at night. */
+  :root {
+    --night: #0d0a1a;
+    --ink: #f4ecff;
+    --gold: #ffcf5a;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--night);
+    color: var(--ink);
+    overflow: hidden;
+    font-family: Fredoka, "Trebuchet MS", system-ui, sans-serif;
+  }
+  #game { width: 100%; height: 100%; }
+  #loading {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    font-size: 20px; color: var(--gold);
+  }
+</style>
+
+<div id="game"></div>
+<div id="loading">Sharpening crossbow bolts…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+<script src="assets.js"></script>
+<script src="skins.js"></script>
+<script src="scenes.js"></script>
+<script>
+(() => {
+  const SHEETS = window.VH_SHEETS || {};
+  const W = 1280, H = 720;
+  const LANES = [415, 465, 515];           // feet height of each lane
+  const HUNTER_X = 112, HUNTER_Y = 465;
+  const ATTACK_X = 232;                    // an enemy that reaches here bites
+  const SPAWN_X = W + 60;
+  const MAX_HEARTS = 5;
+  const SESSION_MS = 20 * 60 * 1000;       // one daily hunt = 20 minutes of play
+  const FONT = 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
+  const TITLE_FONT = 'Creepster, Impact, fantasy';
+
+  // Enemy types: which sprite, where its feet are in the frame, how tall it stands (at 2x) and how fast it moves.
+  const TYPES = {
+    fledgling: { sheet: 'vampWalk',    anim: 'v-walk', ox: 63 / 124, oy: 105 / 124, h: 172, speed: 1 },
+    armored:   { sheet: 'armoredWalk', anim: 'a-walk', ox: 65 / 124, oy: 106 / 124, h: 180, speed: 0.72 },
+    ghoul:     { sheet: 'ghoulRun',    anim: 'g-run',  ox: 65 / 132, oy: 112 / 132, h: 184, speed: 1.25 },
+    bat:       { sheet: 'batFly',      anim: null,     ox: 0.5, oy: 0.5, h: 90, speed: 1.2, flying: true },
+    count:     { sheet: 'countWalk',   anim: 'c-walk', ox: 96 / 176, oy: 150 / 176, h: 246, speed: 0.85, boss: true },
+  };
+
+  // ---------- Hunter looks (characters and outfits) ----------
+  // Each look has idle, shoot and hurt sheets, where its feet sit in the frame, and where its crossbow tip is (at 2x).
+  const LOOKS = Object.assign({
+    rook: { idle: 'hunterIdle', shoot: 'hunterShoot', hurt: 'hunterHurt', ox: 71 / 132, oy: 112 / 132, tipX: 74, tipY: -58, shootStart: 3 },
+  }, window.VH_LOOKS || {});
+  const hasLook = id => !!LOOKS[id] && !!SHEETS[LOOKS[id].idle];
+
+  // ---------- Shop catalog ----------
+  const NEEDS = {
+    garlic:  { text: 'Beat Count Moonfang 3 times', ok: p => p.ach.bossKills >= 3, prog: p => `${Math.min(3, p.ach.bossKills)} of 3` },
+    holy:    { text: 'Finish a game with 95% accuracy', ok: p => p.ach.bestAcc >= 95, prog: p => `best so far ${p.ach.bestAcc}%` },
+    sun:     { text: 'Reach 20 words per minute', ok: p => p.ach.bestWpm >= 20, prog: p => `best so far ${p.ach.bestWpm} WPM` },
+    sunfire: { text: 'Beat every mode with Capitals on', ok: p => MODE_ORDER.every(m => p.ach.capsCleared[m]),
+               prog: p => `${MODE_ORDER.filter(m => p.ach.capsCleared[m]).length} of 5 modes` },
+  };
+  const CATALOG = {
+    hunters: { title: 'Hunters', items: [
+      { id: 'rook', name: 'Rook', price: 0, blurb: 'The original hunter' },
+      { id: 'ivy', name: 'Ivy', price: 0, blurb: 'Sharp eyes, red braid' },
+      { id: 'grimsby', name: 'Grandpa Grimsby', price: 300, blurb: '50 years of hunting' },
+      { id: 'clank', name: 'Sir Clank', price: 500, blurb: 'A robot with a crossbow' },
+    ] },
+    outfits: { title: 'Outfits', items: [
+      { id: 'ranger', name: 'Moonlight Ranger', price: 300, blurb: 'Silver cloak, glowing goggles' },
+      { id: 'knight', name: 'Knight Armor', price: 400, blurb: 'A full suit of shining armor' },
+      { id: 'pirate', name: 'Pirate Hunter', price: 450, blurb: 'Yo ho, vampires!' },
+      { id: 'ninja', name: 'Shadow Ninja', price: 500, blurb: 'Silent and swift' },
+      { id: 'nightbat', name: 'Moonbat Suit', price: 700, blurb: 'Bat-wing cape, glowing goggles' },
+      { id: 'sunfire', name: 'Sunfire Champion', price: 0, ultimate: true, need: 'sunfire', blurb: 'The ultimate outfit' },
+    ] },
+    bolts: { title: 'Bolts', items: [
+      { id: 'oak', name: 'Oak Bolt', price: 0, blurb: 'Trusty and true' },
+      { id: 'silver', name: 'Silver Bolt', price: 150, blurb: 'Vampires hate silver' },
+      { id: 'fire', name: 'Fire Bolt', price: 300, blurb: 'Leaves a trail of sparks' },
+      { id: 'ice', name: 'Ice Bolt', price: 300, blurb: 'Brrr!' },
+      { id: 'garlic', name: 'Garlic Bomb', price: 400, need: 'garlic', blurb: 'Smelly but strong' },
+      { id: 'holy', name: 'Holy Water', price: 500, need: 'holy', blurb: 'A splash of blue light' },
+      { id: 'sun', name: 'Sunbeam', price: 600, need: 'sun', blurb: 'Pure sunlight' },
+    ] },
+  };
+  const SHOP_TABS = ['hunters', 'outfits', 'bolts'];
+  const ITEM = {}; SHOP_TABS.forEach(t => CATALOG[t].items.forEach(it => { it.tab = t; ITEM[it.id] = it; }));
+  const BOLT_FX = {
+    oak: [0xb48cff, 0xffffff, 0x7a4fd1], silver: [0xcfd8dc, 0xffffff, 0x9aa7b0], fire: [0xff7a2a, 0xffd56b, 0xff4d2a],
+    ice: [0x8fd8ff, 0xffffff, 0x5ec8ff], garlic: [0xfff4d6, 0xe8d9a0, 0xffffff], holy: [0x5ec8ff, 0xb8ecff, 0xffffff], sun: [0xffcf5a, 0xfff1c1, 0xffb547],
+  };
+  function ensureProfile(p) {
+    p.coins = p.coins || 0;
+    p.owned = p.owned || { rook: true, ivy: true, oak: true };
+    p.look = p.look || 'rook';
+    p.bolt = p.bolt || 'oak';
+    p.ach = Object.assign({ bossKills: 0, bestWpm: 0, bestAcc: 0, capsCleared: {} }, p.ach || {});
+    p.announced = p.announced || {};
+    return p;
+  }
+
+  // ---------- Keyboard layout ----------
+  // 0 pinky, 1 ring, 2 middle, 3 pointer
+  const FINGER = {
+    '1':0,'2':1,'3':2,'4':3,'5':3,'6':3,'7':3,'8':2,'9':1,'0':0,
+    q:0,a:0,z:0,p:0,';':0,'/':0,
+    w:1,s:1,x:1,o:1,l:1,'.':1,
+    e:2,d:2,c:2,i:2,k:2,',':2,
+    r:3,f:3,v:3,t:3,g:3,b:3,y:3,h:3,n:3,u:3,j:3,m:3
+  };
+  const LEFT_HAND = new Set('12345qwertasdfgzxcvb');
+  const SHIFTED = { '!':'1','@':'2','#':'3','$':'4','%':'5','^':'6','&':'7','*':'8','(':'9',')':'0','?':'/',':':';','<':',','>':'.' };
+  const physKey = c => SHIFTED[c] || c.toLowerCase();
+  const needsShift = c => !!SHIFTED[c] || c !== c.toLowerCase();
+  const CAPS_BONUS = 1.5;
+  const FINGER_COLORS = [0xff7eb3, 0xffb547, 0x7be08f, 0x5ec8ff];
+  const FINGER_NAMES = ['Pinky', 'Ring', 'Middle', 'Pointer'];
+  const KB_STEP = 37, KB_KEY = 31, KB_HOME_X = 473.5;
+  const KB_ROWS = [
+    { chars: '1234567890', y: 572, x0: KB_HOME_X - 27 },
+    { chars: 'qwertyuiop', y: 606, x0: KB_HOME_X - 9 },
+    { chars: 'asdfghjkl;', y: 640, x0: KB_HOME_X },
+    { chars: 'zxcvbnm,./', y: 674, x0: KB_HOME_X + 18 },
+  ];
+
+  // ---------- Word lists ----------
+  const HOME = 'asdfghjkl;';
+  const H2 = ['as', 'ad', 'ha', 'la', 'ah', 'sh'];
+  const H3 = ['ask', 'add', 'dad', 'sad', 'lad', 'had', 'has', 'gas', 'fad', 'lag', 'sag', 'all', 'ash', 'gal', 'aha'];
+  const H4 = ['fall', 'hall', 'lash', 'dash', 'flag', 'glad', 'half', 'sash', 'alas', 'gala', 'dads', 'asks', 'lads', 'fads', 'sass'];
+  const H5 = ['flash', 'salad', 'flask', 'glass', 'shall', 'falls', 'halls', 'flags', 'salsa', 'slash'];
+  const TOPK = 'qwertyuiop';
+  const T2 = ['we', 'it', 'to', 'up', 'or', 'oy'];
+  const T3 = ['pet', 'wet', 'yet', 'tie', 'toe', 'rip', 'pot', 'put', 'out', 'our', 'you', 'toy', 'top', 'tip', 'pie', 'rot', 'tow'];
+  const T4 = ['type', 'tree', 'pour', 'quit', 'wire', 'ripe', 'rope', 'poet', 'your', 'yeti', 'trip', 'were', 'pity', 'pure'];
+  const T5 = ['tower', 'quiet', 'write', 'power', 'route', 'quote', 'equip', 'pretty', 'report', 'pottery', 'territory'];
+  const TMIX = ['ghost', 'fright', 'skull', 'dusk', 'stake', 'fear', 'hood', 'stair', 'loot', 'gold', 'sword', 'shadow', 'lair', 'tooth', 'dagger'];
+  const BOTK = 'zxcvbnm,./';
+  const B2 = ['an', 'am', 'ax', 'ma', 'ban', 'cab'];
+  const B3 = ['man', 'can', 'van', 'fan', 'ban', 'nab', 'cab', 'jab', 'lab', 'dab', 'mad', 'bad', 'ham', 'jam', 'max', 'zag', 'lax', 'tax'];
+  const B4 = ['band', 'hand', 'land', 'sand', 'calm', 'cash', 'bash', 'mash', 'slam', 'clam', 'scan', 'jazz', 'lamb', 'balm', 'vans', 'snag'];
+  const B5 = ['black', 'snack', 'small', 'flash', 'clash', 'smash', 'blank', 'zebra', 'magic', 'candle', 'fancy', 'vampire'];
+  const A3 = ['bat', 'fog', 'owl', 'cat', 'web', 'sun', 'fly', 'run', 'hop', 'zap', 'sky', 'mud', 'jam', 'box', 'fox', 'key', 'map', 'pen', 'cup', 'hat'];
+  const A4 = ['moon', 'fang', 'cape', 'bone', 'dark', 'glow', 'howl', 'mist', 'toad', 'wolf', 'tomb', 'crow', 'gate', 'bell', 'rope', 'hunt', 'jump', 'quiz', 'zoom', 'king'];
+  const A5 = ['ghost', 'night', 'stake', 'spell', 'skull', 'witch', 'tower', 'broom', 'magic', 'crypt', 'shiny', 'brave', 'quick', 'smile', 'jelly', 'pizza', 'zebra', 'frost', 'candle'];
+  const A6 = ['vampire', 'castle', 'garlic', 'shadow', 'hunter', 'coffin', 'spooky', 'goblin', 'pumpkin', 'lantern', 'monster', 'crossbow', 'midnight', 'mystery', 'thunder', 'dungeon', 'treasure', 'wizard', 'silver', 'gargoyle'];
+  const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
+  const DIGITS = '1234567890';
+
+  const L = (keys, newKeys, count, speed, gap, tip, extra = {}) => Object.assign({ keys, newKeys, mode: 'letters', count, speed, gap, tip }, extra);
+  const Wd = (keys, words, count, speed, gap, tip, extra = {}) => Object.assign({ keys, words, mode: 'words', count, speed, gap, tip }, extra);
+
+  // ---------- Typing modes ----------
+  const MODES = {
+    home: {
+      name: 'Home Row', keysLabel: 'A S D F G H J K L ;',
+      waves: [
+        L('fj', 'fj', 8, 58, 2600, 'Pointer fingers go on F and J. Feel the little bumps? That is home.'),
+        L('fjdk', 'dk', 10, 62, 2400, 'Middle fingers rest on D and K, right next to your pointers.'),
+        L('fjdksl', 'sl', 12, 66, 2200, 'Ring fingers rest on S and L. Keep your eyes up here, not on your hands.'),
+        L('fjdksla;', 'a;', 12, 70, 2100, 'Pinkies rest on A and ; (the semicolon). Every finger has a home now.'),
+        L(HOME, 'gh', 14, 74, 1900, 'Stretch a pointer finger in for G or H, then slide it straight back home.', { boss: ['as', 'ha', 'la', 'dad'] }),
+        Wd(HOME, H2, 12, 62, 2600, 'Some vampires carry short words now. Type every letter to load the bolt.', { mode: 'pairs' }),
+        Wd(HOME, H3, 12, 56, 3000, 'Three-letter words. If you pick the wrong vampire, press Backspace to let go.'),
+        Wd(HOME, H4, 12, 54, 3300, 'Four-letter words. Smooth and steady beats fast and sloppy.', { boss: ['alas', 'flask', 'salad', 'shall', 'glass'] }),
+      ],
+      endless: { keys: HOME, words: H4.concat(H5), speed: 56, gap: 3200 },
+    },
+    top: {
+      name: 'Top Row', keysLabel: 'Q W E R T Y U I O P',
+      waves: [
+        L('ru', 'ru', 8, 56, 2700, 'Reach your pointer fingers up from F and J to R and U, then come back home.'),
+        L('ruei', 'ei', 10, 60, 2500, 'Middle fingers reach up from D and K to E and I.'),
+        L('rueiwo', 'wo', 12, 63, 2300, 'Ring fingers reach up from S and L to W and O.'),
+        L('rueiwoqp', 'qp', 12, 66, 2200, 'Pinkies reach up to Q and P. Little fingers, big stretch!'),
+        L(TOPK, 'ty', 14, 70, 2000, 'T and Y are a diagonal stretch for your pointers. Always slide back home.', { boss: ['we', 'it', 'to', 'up'] }),
+        Wd(TOPK, T2, 12, 60, 2600, 'Short words made of top-row letters.', { mode: 'pairs' }),
+        Wd(TOPK, T3, 12, 55, 3000, 'Three-letter words. Keep the other fingers resting on the home row.'),
+        Wd(TOPK + HOME, T4.concat(TMIX), 12, 52, 3300, 'Now the top row and home row work together.', { boss: ['tower', 'quiet', 'route', 'ghost', 'shadow'] }),
+      ],
+      endless: { keys: TOPK + HOME, words: T4.concat(T5, TMIX), speed: 54, gap: 3300 },
+    },
+    bottom: {
+      name: 'Bottom Row', keysLabel: 'Z X C V B N M , . /',
+      waves: [
+        L('vm', 'vm', 8, 56, 2700, 'Curl your pointer fingers down from F and J to V and M.'),
+        L('vmc,', 'c,', 10, 60, 2500, 'Middle fingers curl down from D and K to C and the comma.'),
+        L('vmc,x.', 'x.', 12, 63, 2300, 'Ring fingers curl down from S and L to X and the period.'),
+        L('vmc,x.z/', 'z/', 12, 66, 2200, 'Pinkies curl down to Z and the slash.'),
+        L(BOTK, 'bn', 14, 70, 2000, 'B and N are a stretch inward for your pointers.', { boss: ['an', 'am', 'man', 'van'] }),
+        Wd(BOTK + HOME, B2, 12, 60, 2600, 'Short words that mix the bottom row and the home row.', { mode: 'pairs' }),
+        Wd(BOTK + HOME, B3, 12, 55, 3000, 'Three-letter words. Feel for F and J between every word.'),
+        Wd(BOTK + HOME, B4, 12, 52, 3300, 'Four-letter words. Steady hands!', { boss: ['black', 'snack', 'jazz', 'calm', 'smash'] }),
+      ],
+      endless: { keys: BOTK + HOME, words: B4.concat(B5), speed: 54, gap: 3300 },
+    },
+    numbers: {
+      name: 'Numbers and Symbols', keysLabel: '1 2 3 4 5 6 7 8 9 0  ! ? @ # $ %',
+      waves: [
+        L('47', '47', 8, 54, 2800, 'Reach your pointer fingers way up for 4 and 7. Keep your palms still.'),
+        L('4738', '38', 10, 57, 2600, 'Middle fingers reach up for 3 and 8.'),
+        L('473829', '29', 12, 60, 2400, 'Ring fingers reach up for 2 and 9.'),
+        L('47382910', '10', 12, 62, 2300, 'Pinkies reach up for 1 and 0.'),
+        L(DIGITS, '56', 14, 64, 2100, '5 and 6 are a long stretch for your pointers.', { boss: ['47', '38', '29', '10'] }),
+        { keys: DIGITS, mode: 'gen', genLen: [2, 3], count: 12, speed: 55, gap: 3000, tip: 'Numbers with two or three digits. Read the whole number first.' },
+        L(DIGITS + '!?', '!?', 12, 56, 2600, 'Symbols need Shift. Hold Shift with the pinky of the OTHER hand, then press the key.'),
+        L(DIGITS + '!?@#$%', '@#$%', 12, 54, 2800, 'More symbols. Same trick: opposite pinky on Shift.', { boss: ['42', '!?', '1990', '$5', '#1'] }),
+      ],
+      endless: { keys: DIGITS + '!?@#$%', mode: 'gen', genLen: [2, 4], speed: 54, gap: 3200 },
+    },
+    all: {
+      name: 'All Keys', keysLabel: 'Every letter A to Z',
+      waves: [
+        L(ALPHA, '', 12, 60, 2400, 'Any letter can show up. Find it, press it, and slide back home.'),
+        Wd(ALPHA, A3, 12, 56, 2900, 'Three-letter words from the whole keyboard.'),
+        Wd(ALPHA, A4, 12, 54, 3200, 'Four-letter words. You are getting good at this.', { boss: ['moon', 'fang', 'ghost', 'night'] }),
+        Wd(ALPHA, A5, 12, 52, 3400, 'Five-letter words. Keep a steady rhythm.'),
+        Wd(ALPHA, A6, 10, 48, 3800, 'Long spooky words. Take your time and get every letter right.', { boss: ['vampire', 'castle', 'garlic', 'crossbow', 'midnight'] }),
+      ],
+      endless: { keys: ALPHA, words: A5.concat(A6), speed: 50, gap: 3600 },
+    },
+  };
+  const MODE_ORDER = ['home', 'top', 'bottom', 'numbers', 'all'];
+
+  function waveConfig(modeKey, n) {
+    const M = MODES[modeKey];
+    if (n <= M.waves.length) return M.waves[n - 1];
+    const extra = n - M.waves.length, E = M.endless;
+    const pool = E.words || [];
+    return {
+      keys: E.keys, mode: E.mode || 'words', words: pool, genLen: E.genLen,
+      count: 12 + extra * 2, speed: E.speed + extra * 5, gap: Math.max(1800, E.gap - extra * 200),
+      boss: extra % 3 === 0 && pool.length ? Phaser.Utils.Array.Shuffle(pool.slice()).slice(0, 5) : null,
+      tip: 'The longest night. Every wave from here gets a little faster. How far can you go?',
+    };
+  }
+
+  // ---------- Saved profiles (this device only) ----------
+  const Store = {
+    key: 'vh-save-v1',
+    data: { profiles: [], lastId: null },
+    load() {
+      try {
+        const d = JSON.parse(localStorage.getItem(this.key) || 'null');
+        if (d && Array.isArray(d.profiles)) this.data = d;
+      } catch (e) { /* storage blocked: play without saving */ }
+    },
+    save() { try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) {} },
+  };
+  function todayKey(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function newProfile(name) {
+    return { id: 'p' + Date.now().toString(36), name, created: todayKey(), keyStats: {}, modes: {}, days: {}, sessions: 0 };
+  }
+  function dayStreak(p) {
+    let n = 0; const d = new Date();
+    if (!(p.days[todayKey(d)] || {}).done) d.setDate(d.getDate() - 1);   // today not finished yet doesn't break the streak
+    while ((p.days[todayKey(d)] || {}).done) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+  function todayMs(p) { return (p.days[todayKey()] || {}).ms || 0; }
+  function fmtMin(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+
+  // ---------- Sound (tiny synth, no files needed) ----------
+  const Sfx = {
+    ctx: null, on: true,
+    init() {
+      try {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        Music.boot(this.ctx);
+      } catch (e) { /* no audio, game still works */ }
+    },
+    tone(freq, dur, type = 'square', vol = 0.08, slideTo = null, delay = 0) {
+      if (!this.on || !this.ctx) return;
+      const t = this.ctx.currentTime + delay;
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+    },
+    noise(dur, vol = 0.12, freq = 900) {
+      if (!this.on || !this.ctx) return;
+      const n = Math.floor(this.ctx.sampleRate * dur);
+      const b = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = this.ctx.createBufferSource(); s.buffer = b;
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq;
+      const g = this.ctx.createGain(); g.gain.value = vol;
+      s.connect(f).connect(g).connect(this.ctx.destination); s.start();
+    },
+    shoot() { this.tone(900, 0.12, 'triangle', 0.07, 300); this.noise(0.06, 0.05, 3000); },
+    poof()  { this.noise(0.25, 0.14, 700); this.tone(500, 0.18, 'sine', 0.05, 1200); },
+    key()   { this.tone(1200, 0.04, 'square', 0.025); },
+    click() { this.tone(700, 0.05, 'triangle', 0.05); },
+    miss()  { this.tone(140, 0.12, 'square', 0.05, 90); },
+    hurt()  { this.tone(220, 0.3, 'sawtooth', 0.07, 80); this.noise(0.2, 0.1, 400); },
+    fanfare() { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.18, 'triangle', 0.06, null, i * 0.1)); },
+    big()   { [392, 523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.07, null, i * 0.12)); },
+    lose()  { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.06, null, i * 0.16)); },
+  };
+
+  // ---------- Music (Suno tracks, published next to the page in music/) ----------
+  // Battle music by mode and wave: calm tracks for early home-row waves, the fast ones for later and harder waves.
+  const BATTLE_POOLS = {
+    home:    ['battle-forest-creep', 'battle-crypt-groove', 'battle-moonlight-waltz', 'battle-courtyard-march'],
+    top:     ['battle-crypt-groove', 'battle-moonlight-waltz', 'battle-courtyard-march', 'battle-bat-cave-bounce'],
+    bottom:  ['battle-moonlight-waltz', 'battle-crypt-groove', 'battle-bat-cave-bounce', 'battle-courtyard-march'],
+    numbers: ['battle-courtyard-march', 'battle-moonlight-waltz', 'battle-bat-cave-bounce', 'battle-rooftop-chase'],
+    all:     ['battle-courtyard-march', 'battle-bat-cave-bounce', 'battle-rooftop-chase', 'battle-loop'],
+  };
+  // Each wave gets a random track (and its matching setting), never the same one twice in a row.
+  // Early waves draw from the calm end of the mode's list; the choice widens as the waves go on.
+  const pickBattle = (modeKey, wave, prev) => {
+    const pool = BATTLE_POOLS[modeKey] || BATTLE_POOLS.all;
+    const n = wave > MODES[modeKey].waves.length ? pool.length : Math.min(pool.length, 2 + Math.floor((wave - 1) / 2));
+    const c = pool.slice(0, n).filter(t => t !== prev);
+    return Phaser.Utils.Array.GetRandom(c.length ? c : pool);
+  };
+  // Settings, one per battle track. Ground colors and stars come from scenes.js.
+  const TRACK_SCENE = {
+    'battle-loop': 'graveyard', 'battle-forest-creep': 'forest', 'battle-crypt-groove': 'crypt', 'battle-moonlight-waltz': 'garden',
+    'battle-courtyard-march': 'courtyard', 'battle-bat-cave-bounce': 'cave', 'battle-rooftop-chase': 'rooftops',
+  };
+  const SCENES = Object.assign({
+    graveyard: { img: 'graveyard', sky: true, ground: [0x16244a, 0x0b1130], tuft: [0x1c3a3c, 0x23484a, 0x15303a] },
+  }, window.VH_SCENES || {});
+  const Music = {
+    tracks: {
+      'title-theme': { loop: true, sec: 31.994 }, 'battle-loop': { loop: true, sec: 27.007 }, 'boss-fight': { loop: true, sec: 106.662 },
+      'wave-cleared': { sec: 4.091, vol: 0.16 }, 'reward-unlocked': { sec: 8.6 }, 'session-complete': { sec: 17.2 },
+      // battle loops, calm to intense; fetched only when a wave needs one so an iPad never holds them all at once
+      'battle-forest-creep': { loop: true, lazy: true, sec: 34.733 }, 'battle-crypt-groove': { loop: true, lazy: true, sec: 124.797 },
+      'battle-moonlight-waltz': { loop: true, lazy: true, sec: 54.126 }, 'battle-courtyard-march': { loop: true, lazy: true, sec: 90.678 },
+      'battle-bat-cave-bounce': { loop: true, lazy: true, sec: 86.273 }, 'battle-rooftop-chase': { loop: true, lazy: true, sec: 44.8 },
+    },
+    loading: {}, keep: null,
+    ctx: null, out: null, buffers: {}, cur: null, curName: null, wanted: null, on: true,
+    vol: 0.18,          // background tracks sit well under the sound effects
+    stingVol: 0.3,      // jingles a little above the background, never a jump in loudness
+    stingUntil: 0,
+    boot(ctx) {
+      if (this.ctx) return;
+      this.ctx = ctx;
+      this.out = ctx.createGain(); this.out.gain.value = this.vol; this.out.connect(ctx.destination);
+      Object.keys(this.tracks).forEach(name => { if (!this.tracks[name].lazy) this.load(name); });
+      if (this.wanted) this.want(this.wanted);
+    },
+    load(name) {
+      if (!this.ctx || !name || this.buffers[name] || this.loading[name]) return;
+      this.loading[name] = true;
+      fetch(`music/${name}.mp3`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(b => new Promise((ok, bad) => this.ctx.decodeAudioData(b, ok, bad)))
+        .then(buf => { this.buffers[name] = buf; if (this.wanted === name && this.curName !== name) this.start(name); })
+        .catch(() => { /* music missing: the game still plays with sound effects */ })
+        .finally(() => { delete this.loading[name]; });
+    },
+    prefetch(name) { this.keep = name; this.load(name); },
+    want(name) {
+      this.wanted = name;
+      if (this.curName === name) return;
+      if (this.buffers[name]) this.start(name); else this.load(name);
+    },
+    start(name) {
+      const buf = this.buffers[name];
+      if (!this.ctx || !buf) return;
+      this.stopCurrent();
+      if (this.tracks[name].lazy)   // free the battle loops we are done with
+        Object.keys(this.buffers).forEach(k => { if (this.tracks[k].lazy && k !== name && k !== this.keep) delete this.buffers[k]; });
+      if (!this.on) { this.curName = null; return; }
+      const t = this.tracks[name], src = this.ctx.createBufferSource(), g = this.ctx.createGain();
+      src.buffer = buf; src.loop = !!t.loop;
+      if (t.loop) { src.loopStart = 0; src.loopEnd = Math.min(buf.duration, t.sec); }
+      const now = this.ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(1, now + 0.6);
+      src.connect(g).connect(this.out); src.start();
+      this.cur = { src, g }; this.curName = name;
+    },
+    stopCurrent() {
+      if (!this.cur) return;
+      const { src, g } = this.cur, now = this.ctx.currentTime;
+      try { g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(g.gain.value, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.4); src.stop(now + 0.45); } catch (e) {}
+      this.cur = null; this.curName = null;
+    },
+    sting(name) {   // a one-shot jingle; the background track dips under it
+      const buf = this.buffers[name];
+      if (!this.ctx || !buf || !this.on) return false;
+      const now = this.ctx.currentTime;
+      if (now < this.stingUntil) return true;   // one jingle at a time (boss defeat and wave clear can land together)
+      const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
+      const dur = Math.min(buf.duration, this.tracks[name].sec), fade = Math.min(1.2, dur * 0.3);
+      src.buffer = buf;
+      const vol = this.tracks[name].vol || this.stingVol;
+      g.gain.setValueAtTime(vol, now);
+      g.gain.setValueAtTime(vol, now + dur - fade);
+      g.gain.linearRampToValueAtTime(0.0001, now + dur);   // ease out instead of stopping dead
+      src.connect(g).connect(this.ctx.destination); src.start(now); src.stop(now + dur + 0.05);
+      this.stingUntil = now + dur;
+      this.out.gain.cancelScheduledValues(now);
+      this.out.gain.setValueAtTime(this.vol, now); this.out.gain.linearRampToValueAtTime(this.vol * 0.3, now + 0.2);
+      this.out.gain.setValueAtTime(this.vol * 0.3, now + dur - fade); this.out.gain.linearRampToValueAtTime(this.vol, now + dur + 0.4);
+      return true;
+    },
+    toggle() {
+      this.on = !this.on;
+      if (!this.on) this.stopCurrent(); else if (this.wanted) { this.curName = null; this.want(this.wanted); }
+      return this.on;
+    },
+  };
+
+  // ---------- Small effect textures, drawn in code ----------
+  function tex(scene, key, w, h, draw) {
+    const g = scene.make.graphics({ x: 0, y: 0, add: false });
+    draw(g); g.generateTexture(key, w, h); g.destroy();
+  }
+  function makeTextures(s) {
+    tex(s, 'bolt', 56, 10, g => {
+      g.fillStyle(0xcfd8dc); g.fillRect(6, 4, 40, 2.5);
+      g.fillStyle(0xf4ecff); g.fillTriangle(44, 0, 56, 5, 44, 10);
+      g.fillStyle(0xd94848); g.fillTriangle(0, 0, 12, 5, 0, 10);
+    });
+    tex(s, 'puff', 32, 32, g => { g.fillStyle(0xffffff); g.fillCircle(16, 16, 16); });
+    tex(s, 'spark', 24, 24, g => {
+      g.fillStyle(0xffffff);
+      g.fillPoints([{x:12,y:0},{x:15,y:9},{x:24,y:12},{x:15,y:15},{x:12,y:24},{x:9,y:15},{x:0,y:12},{x:9,y:9}], true);
+    });
+    tex(s, 'heart', 34, 30, g => {
+      g.fillStyle(0xff4d6d); g.fillCircle(10, 10, 9); g.fillCircle(24, 10, 9); g.fillTriangle(1.5, 13, 32.5, 13, 17, 29);
+      g.fillStyle(0xffffff, 0.6); g.fillCircle(8, 8, 3);
+    });
+    tex(s, 'heartEmpty', 34, 30, g => {
+      g.fillStyle(0x3a2a55); g.fillCircle(10, 10, 9); g.fillCircle(24, 10, 9); g.fillTriangle(1.5, 13, 32.5, 13, 17, 29);
+    });
+    tex(s, 'fog', 420, 90, g => {
+      for (let i = 0; i < 9; i++) { g.fillStyle(0xd9ccff, 0.05); g.fillEllipse(210, 45, 420 - i * 42, 90 - i * 9); }
+    });
+    tex(s, 'coin', 22, 22, g => {
+      g.fillStyle(0x8a5a10); g.fillCircle(11, 11, 11); g.fillStyle(0xffcf5a); g.fillCircle(11, 10, 9);
+      g.fillStyle(0xfff1c1); g.fillRect(9, 5, 4, 10); g.fillStyle(0xffffff, 0.7); g.fillCircle(7, 7, 2);
+    });
+    tex(s, 'keyglow', 46, 46, g => { g.lineStyle(4, 0xffffff); g.strokeRoundedRect(3, 3, 40, 40, 9); });
+    tex(s, 'shiftglow', 74, 46, g => { g.lineStyle(4, 0xffffff); g.strokeRoundedRect(3, 3, 68, 40, 9); });
+  }
+
+  class Hunt extends Phaser.Scene {
+    constructor() { super('hunt'); }
+
+    preload() {
+      Object.entries(SHEETS).forEach(([k, s]) => s.image ? this.load.image(k, s.url) : this.load.spritesheet(k, s.url, { frameWidth: s.size, frameHeight: s.size }));
+    }
+
+    create() {
+      Store.load();
+      makeTextures(this);
+      Object.keys(SHEETS).forEach(k => this.textures.get(k).setFilter(Phaser.Textures.FilterMode.NEAREST));
+      const A = (key, sheet, start, end, frameRate, extra = {}) =>
+        this.anims.create(Object.assign({ key, frames: this.anims.generateFrameNumbers(sheet, { start, end }), frameRate }, extra));
+      Object.entries(LOOKS).forEach(([id, L]) => {
+        if (!hasLook(id)) return;
+        const all = k => this.anims.generateFrameNumbers(k);
+        this.anims.create({ key: id + '-idle', frames: all(L.idle), frameRate: 6, repeat: -1, yoyo: true });
+        this.anims.create({ key: id + '-shoot', frames: all(L.shoot).slice(L.shootStart || 0), frameRate: 16 });
+        this.anims.create({ key: id + '-hurt', frames: all(L.hurt), frameRate: 12 });
+      });
+      A('v-walk', 'vampWalk', 1, 8, 10, { repeat: -1 });
+      A('v-bite', 'vampBite', 0, 6, 16);
+      A('a-walk', 'armoredWalk', 1, 8, 8, { repeat: -1 });
+      A('g-run', 'ghoulRun', 1, 8, 14, { repeat: -1 });
+      A('c-walk', 'countWalk', 1, 8, 8, { repeat: -1 });
+      A('c-cast', 'countCast', 0, 8, 10);
+
+      this.drawBackground();
+      this.vamps = [];
+      this.target = null;
+      this.state = 'menu';
+      this.panel = null;
+      this.menu = [];
+
+      this.shadowH = this.add.ellipse(HUNTER_X, HUNTER_Y, 96, 18, 0x000000, 0.35).setDepth(HUNTER_Y - 1);
+      this.hunter = this.add.sprite(HUNTER_X, HUNTER_Y, 'hunterIdle').setScale(2).setDepth(HUNTER_Y);
+      this.hunter.on('animationcomplete', a => { if (!a.key.endsWith('-idle')) this.hunter.play(this.lookId + '-idle'); });
+      this.setLook('rook');
+
+      this.buildHud();
+      this.buildKeyboard();
+      this.showProfiles();
+
+      window.addEventListener('keydown', e => this.onKey(e));
+      this.input.on('pointerdown', () => { Sfx.init(); try { window.focus(); } catch (e) {} });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { if (this.state === 'playing') this.pause(); this.saveProfile(); }
+      });
+    }
+
+    setLook(id) {
+      if (!hasLook(id)) id = 'rook';
+      const L = LOOKS[id];
+      this.lookId = id;
+      this.hunter.setTexture(L.idle, 0).setOrigin(L.ox, L.oy).play(id + '-idle');
+      this.boltX = HUNTER_X + L.tipX; this.boltY = HUNTER_Y + L.tipY;
+    }
+    lookSprite(id, x, y, scale, depth, startFrame = 0) {
+      if (!hasLook(id)) id = 'rook';
+      const L = LOOKS[id];
+      const spr = this.add.sprite(x, y, L.idle, 0).setOrigin(L.ox, L.oy).setScale(scale).setDepth(depth);
+      spr.play({ key: id + '-idle', startFrame: startFrame % this.anims.get(id + '-idle').frames.length });
+      return spr;
+    }
+
+    // ---------- Scenery ----------
+    drawBackground() {
+      this.sceneObjs = []; this.sceneId = null;
+      this.setScene('graveyard');
+      [430, 480, 530].forEach((y, i) => {
+        const f = this.add.image(Phaser.Math.Between(0, W), y, 'fog').setScale(1.8, 1.1).setAlpha(0.55).setDepth(1200);
+        const drift = () => {
+          this.tweens.add({ targets: f, x: -450, duration: (f.x + 450) / (14 + i * 4) * 1000,
+            onComplete: () => { f.x = W + 450; drift(); } });
+        };
+        drift();
+      });
+      const p = this.add.graphics().setDepth(2000);
+      p.fillStyle(0x100a1f, 0.97); p.fillRect(0, 552, W, H - 552);
+      p.lineStyle(2, 0x3d2b63, 1); p.lineBetween(0, 553, W, 553);
+    }
+
+    setScene(id) {
+      if (!SCENES[id] || !this.textures.exists(SCENES[id].img)) id = 'graveyard';
+      this.sceneObjs.forEach(o => { this.tweens.killTweensOf(o); o.destroy(); });
+      const S = SCENES[id], objs = this.sceneObjs = [];
+      this.sceneId = id;
+      const img = this.add.image(0, -40 - (S.shift || 0), S.img).setOrigin(0, 0).setDepth(-100);
+      img.setScale(W / img.width, 560 / img.height);
+      this.textures.get(S.img).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      const g = this.add.graphics().setDepth(-99);
+      g.fillGradientStyle(S.ground[0], S.ground[0], S.ground[1], S.ground[1], 1); g.fillRect(0, 432, W, 120);
+      for (let i = 0; i < 140; i++) {
+        g.fillStyle(S.tuft[i % S.tuft.length], 1);
+        const x = Math.floor(Phaser.Math.Between(0, W) / 4) * 4, y = Math.floor(Phaser.Math.Between(436, 548) / 4) * 4;
+        g.fillRect(x, y, 4 * Phaser.Math.Between(1, 3), 4);
+      }
+      objs.push(img, g);
+      for (let i = 0; i < 12; i++) {
+        const st = this.add.image(Phaser.Math.Between(20, W - 260), Phaser.Math.Between(10, 200), 'spark')
+          .setScale(Phaser.Math.FloatBetween(0.2, 0.4)).setDepth(-90).setTint(S.sky ? 0xffffff : 0xffb070);
+        if (!S.sky) st.y = Phaser.Math.Between(60, 380);   // indoor: drifting embers instead of stars
+        this.tweens.add({ targets: st, alpha: 0.15, duration: Phaser.Math.Between(700, 1800), yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 1500) });
+        objs.push(st);
+      }
+    }
+    // Fade the play area to night-black, swap the setting, and have the hunter hop back in from the left.
+    sceneTransition(id) {
+      if (!SCENES[id] || !this.textures.exists(SCENES[id].img)) id = 'graveyard';
+      if (id === this.sceneId) return false;
+      const cover = this.add.rectangle(W / 2, 276, W, 552, 0x05030c).setAlpha(0).setDepth(2400);
+      this.tweens.add({ targets: cover, alpha: 1, duration: 420, ease: 'Sine.in', onComplete: () => {
+        this.setScene(id);
+        this.hunter.x = this.shadowH.x = -70;
+        this.tweens.add({ targets: cover, alpha: 0, duration: 520, ease: 'Sine.out', onComplete: () => cover.destroy() });
+        this.tweens.add({ targets: [this.hunter, this.shadowH], x: HUNTER_X, duration: 760, ease: 'Quad.out' });
+        this.tweens.add({ targets: this.hunter, y: HUNTER_Y - 14, duration: 125, yoyo: true, repeat: 2, onComplete: () => { this.hunter.y = HUNTER_Y; } });
+      } });
+      return true;
+    }
+
+    txt(x, y, s, style) {
+      return this.add.text(x, y, s, Object.assign({ fontFamily: FONT, color: '#f4ecff', resolution: 2 }, style));
+    }
+
+    // ---------- HUD ----------
+    buildHud() {
+      this.heartIcons = [];
+      for (let i = 0; i < MAX_HEARTS; i++) this.heartIcons.push(this.add.image(36 + i * 40, 34, 'heart').setDepth(2500));
+      this.sessionText = this.txt(20, 58, '', { fontSize: '15px', fontStyle: '600', color: '#e4d9fb' }).setDepth(2500);
+      this.sessionBar = this.add.graphics().setDepth(2500);
+      this.coinIcon = this.add.image(31, 108, 'coin').setDepth(2500);
+      this.coinText = this.txt(48, 108, '', { fontSize: '17px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0, 0.5).setDepth(2500);
+      this.waveText = this.txt(640, 14, '', { fontSize: '28px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0.5, 0).setDepth(2500);
+      this.statsText = this.txt(640, 50, '', { fontSize: '16px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0.5, 0).setDepth(2500);
+      this.scoreText = this.txt(W - 24, 12, '', { fontSize: '30px', fontStyle: '700' }).setOrigin(1, 0).setDepth(2500);
+      this.streakText = this.txt(W - 24, 50, '', { fontSize: '18px', fontStyle: '600', color: '#7be08f' }).setOrigin(1, 0).setDepth(2500);
+      this.soundText = this.txt(W - 24, 80, 'Sound: on', { fontSize: '15px', fontStyle: '500', color: '#cbbcec' })
+        .setOrigin(1, 0).setDepth(2500).setInteractive({ useHandCursor: true });
+      this.soundText.on('pointerdown', () => {
+        Sfx.on = !Sfx.on; this.soundText.setText('Sound: ' + (Sfx.on ? 'on' : 'off'));
+      });
+      this.musicText = this.txt(W - 24, 102, 'Music: on', { fontSize: '15px', fontStyle: '500', color: '#cbbcec' })
+        .setOrigin(1, 0).setDepth(2500).setInteractive({ useHandCursor: true });
+      this.musicText.on('pointerdown', () => { Sfx.init(); this.musicText.setText('Music: ' + (Music.toggle() ? 'on' : 'off')); });
+      this.setHudVisible(false);
+    }
+    setHudVisible(v) {
+      [this.waveText, this.statsText, this.scoreText, this.streakText, this.sessionText, this.sessionBar, this.coinIcon, this.coinText, ...this.heartIcons].forEach(o => o.setVisible(v));
+    }
+    updateHearts() {
+      this.heartIcons.forEach((h, i) => h.setTexture(i < this.hearts ? 'heart' : 'heartEmpty'));
+    }
+    mult() { return 1 + Math.min(3, Math.floor(this.streak / 10)); }
+    accuracy() { const t = this.correct + this.wrong; return t ? Math.round(this.correct / t * 100) : 100; }
+    wpm() { return this.activeMs > 4000 ? Math.round((this.correct / 5) / (this.activeMs / 60000)) : 0; }
+    updateHud() {
+      this.waveText.setText(`${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
+      this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps ? '   ·   Capitals ×1.5' : ''}`);
+      this.scoreText.setText(this.score.toLocaleString());
+      const m = this.mult();
+      this.streakText.setText(this.streak ? `Streak ${this.streak}${m > 1 ? '   ×' + m : ''}` : '');
+      this.drawSession();
+      this.coinText.setText(`${this.profile.coins.toLocaleString()}`);
+    }
+    drawSession() {
+      const p = this.profile; if (!p) return;
+      const ms = todayMs(p), done = (p.days[todayKey()] || {}).done;
+      this.sessionText.setText(done ? `Daily hunt done!  ${fmtMin(ms)} today` : `Daily hunt  ${fmtMin(ms)} / 20:00`);
+      const g = this.sessionBar; g.clear();
+      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(20, 80, 200, 8, 4);
+      g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(20, 80, Math.max(8, 200 * Math.min(1, ms / SESSION_MS)), 8, 4);
+    }
+
+    // ---------- On-screen keyboard ----------
+    buildKeyboard() {
+      this.keyPos = {}; this.keyGfx = {}; this.keyTxt = {};
+      KB_ROWS.forEach(row => {
+        [...row.chars].forEach((ch, i) => {
+          const x = row.x0 + i * KB_STEP, y = row.y;
+          this.keyPos[ch] = { x, y };
+          this.keyGfx[ch] = this.add.graphics().setDepth(2001);
+          this.keyTxt[ch] = this.txt(x, y - 1, ch.toUpperCase(), { fontSize: '16px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003);
+        });
+      });
+      const bottom = KB_ROWS[3];
+      this.shiftPos = {
+        left:  { x: bottom.x0 - KB_STEP / 2 - 36, y: bottom.y },
+        right: { x: bottom.x0 + 9 * KB_STEP + KB_STEP / 2 + 36, y: bottom.y },
+      };
+      this.shiftGfx = this.add.graphics().setDepth(2001);
+      this.shiftTxt = ['left', 'right'].map(s => this.txt(this.shiftPos[s].x, this.shiftPos[s].y, 'SHIFT', { fontSize: '11px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003));
+      this.spaceGfx = this.add.graphics().setDepth(2001);
+      this.spaceTxt = this.txt(640, 703, 'SPACE', { fontSize: '11px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003);
+      this.keyGlow = this.add.image(0, 0, 'keyglow').setTint(0xffcf5a).setDepth(2002).setVisible(false);
+      this.shiftGlow = this.add.image(0, 0, 'shiftglow').setTint(0xffcf5a).setDepth(2002).setVisible(false);
+      this.tweens.add({ targets: [this.keyGlow, this.shiftGlow], alpha: { from: 1, to: 0.4 }, duration: 420, yoyo: true, repeat: -1 });
+      this.nextKey = null;
+
+      this.txt(36, 570, 'FINGER COLORS', { fontSize: '13px', fontStyle: '600', color: '#9a8bc2' }).setLetterSpacing(1.5).setDepth(2003);
+      FINGER_NAMES.forEach((name, i) => {
+        const y = 602 + i * 26;
+        const g = this.add.graphics().setDepth(2003);
+        g.fillStyle(FINGER_COLORS[i], 1); g.fillCircle(46, y, 7);
+        this.txt(62, y, name, { fontSize: '16px', fontStyle: '500' }).setOrigin(0, 0.5).setDepth(2003);
+      });
+      this.txt(160, 602, 'Same color,\nsame finger\non both hands.', { fontSize: '14px', fontStyle: '500', color: '#9a8bc2', lineSpacing: 4 })
+        .setOrigin(0, 0.15).setDepth(2003);
+
+      this.txt(950, 570, 'TIP', { fontSize: '13px', fontStyle: '600', color: '#9a8bc2' }).setLetterSpacing(1.5).setDepth(2003);
+      this.tipText = this.txt(950, 594, '', { fontSize: '16px', fontStyle: '500', color: '#e4d9fb', lineSpacing: 4, wordWrap: { width: 300 } })
+        .setDepth(2003);
+
+      this.refreshKeyboard(HOME, '');
+      this.drawShift(false);
+      this.drawSpace(true);
+    }
+    drawKey(ch, state) {
+      const { x, y } = this.keyPos[ch], g = this.keyGfx[ch], s = KB_KEY;
+      const col = FINGER_COLORS[FINGER[ch]];
+      g.clear();
+      if (state === 'off') {
+        g.fillStyle(0x1d1533, 1); g.fillRoundedRect(x - s / 2, y - s / 2, s, s, 6);
+        g.lineStyle(2, 0x2c2148, 1); g.strokeRoundedRect(x - s / 2, y - s / 2, s, s, 6);
+        this.keyTxt[ch].setColor('#5b4f78');
+      } else {
+        g.fillStyle(col, state === 'new' ? 0.55 : 0.25); g.fillRoundedRect(x - s / 2, y - s / 2, s, s, 6);
+        g.lineStyle(2, col, 1); g.strokeRoundedRect(x - s / 2, y - s / 2, s, s, 6);
+        this.keyTxt[ch].setColor('#ffffff');
+      }
+      if (ch === 'f' || ch === 'j') {
+        g.fillStyle(state === 'off' ? 0x5b4f78 : 0xffffff, 1); g.fillRoundedRect(x - 5, y + 9, 10, 3, 1.5);
+      }
+    }
+    refreshKeyboard(keys, newKeys = '') {
+      const on = new Set([...keys].map(physKey)), fresh = new Set([...newKeys].map(physKey));
+      Object.keys(this.keyPos).forEach(ch => this.drawKey(ch, fresh.has(ch) ? 'new' : on.has(ch) ? 'on' : 'off'));
+      this.drawShift([...keys].some(c => SHIFTED[c]));
+    }
+    drawShift(lit) {
+      const g = this.shiftGfx; g.clear();
+      Object.values(this.shiftPos).forEach(({ x, y }) => {
+        g.fillStyle(lit ? 0xff7eb3 : 0x1d1533, lit ? 0.25 : 1); g.fillRoundedRect(x - 32, y - KB_KEY / 2, 64, KB_KEY, 6);
+        g.lineStyle(2, lit ? 0xff7eb3 : 0x2c2148, 1); g.strokeRoundedRect(x - 32, y - KB_KEY / 2, 64, KB_KEY, 6);
+      });
+      this.shiftTxt.forEach(t => t.setColor(lit ? '#ffffff' : '#5b4f78'));
+    }
+    drawSpace(lit) {
+      const g = this.spaceGfx; g.clear();
+      g.fillStyle(lit ? 0xffcf5a : 0x1d1533, lit ? 0.3 : 1); g.fillRoundedRect(525, 694, 230, 18, 6);
+      g.lineStyle(2, lit ? 0xffcf5a : 0x2c2148, 1); g.strokeRoundedRect(525, 694, 230, 18, 6);
+      this.spaceTxt.setColor(lit ? '#ffffff' : '#5b4f78');
+    }
+    flashKey(ch, ok) {
+      const p = this.keyPos[physKey(ch)]; if (!p) return;
+      const g = this.add.graphics().setDepth(2002);
+      g.fillStyle(ok ? 0x7be08f : 0xff5a5a, 0.7); g.fillRoundedRect(p.x - KB_KEY / 2, p.y - KB_KEY / 2, KB_KEY, KB_KEY, 6);
+      this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+    }
+    updateNextKey() {
+      let c = null;
+      if (this.state === 'playing') {
+        if (this.target && !this.target.dead) c = this.target.word[this.target.typed];
+        else {
+          const alive = this.vamps.filter(v => !v.dead);
+          if (alive.length) c = alive.reduce((a, b) => (a.x < b.x ? a : b)).word[0];
+        }
+      }
+      if (c === this.nextKey) return;
+      this.nextKey = c;
+      const k = c && physKey(c);
+      if (k && this.keyPos[k]) this.keyGlow.setPosition(this.keyPos[k].x, this.keyPos[k].y).setVisible(true);
+      else this.keyGlow.setVisible(false);
+      if (c && needsShift(c)) {
+        const side = LEFT_HAND.has(k) ? 'right' : 'left';   // Shift with the opposite hand
+        this.shiftGlow.setPosition(this.shiftPos[side].x, this.shiftPos[side].y).setVisible(true);
+      } else this.shiftGlow.setVisible(false);
+    }
+    hideGlow() { this.keyGlow.setVisible(false); this.shiftGlow.setVisible(false); this.nextKey = null; }
+
+    // ---------- Panels ----------
+    showPanel({ title, body, footer, h = 300, y = 300, w = 740 }) {
+      this.hidePanel();
+      const c = this.add.container(640, y).setDepth(3000);
+      const g = this.add.graphics();
+      g.fillStyle(0x000000, 0.35); g.fillRoundedRect(-w / 2 + 6, -h / 2 + 10, w, h, 24);
+      g.fillStyle(0x140c28, 0.96); g.fillRoundedRect(-w / 2, -h / 2, w, h, 24);
+      g.lineStyle(3, 0x7a55c8, 1); g.strokeRoundedRect(-w / 2, -h / 2, w, h, 24);
+      const t = this.txt(0, -h / 2 + 48, title, { fontFamily: TITLE_FONT, fontSize: '50px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 6 }).setOrigin(0.5);
+      const b = this.txt(0, -h / 2 + 92, body, { fontSize: '21px', fontStyle: '500', color: '#efe6ff', align: 'center', lineSpacing: 9, wordWrap: { width: w - 90 } }).setOrigin(0.5, 0);
+      const f = this.txt(0, h / 2 - 38, footer, { fontSize: '22px', fontStyle: '700', color: '#ffcf5a', align: 'center' }).setOrigin(0.5);
+      this.tweens.add({ targets: f, alpha: 0.45, duration: 700, yoyo: true, repeat: -1 });
+      c.add([g, t, b, f]);
+      this.panel = c;
+      return c;
+    }
+    hidePanel() { if (this.panel) { this.panel.destroy(); this.panel = null; } }
+
+    banner(s, y = 200) {
+      const t = this.txt(640, y, s, { fontFamily: TITLE_FONT, fontSize: '84px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 8 })
+        .setOrigin(0.5).setDepth(2900).setScale(0.6).setAlpha(0);
+      this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 300, ease: 'Back.out',
+        onComplete: () => this.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: 900, duration: 400, onComplete: () => t.destroy() }) });
+    }
+
+    // ---------- Menus: profiles, naming, modes ----------
+    clearMenu() { this.menu.forEach(o => o.destroy()); this.menu = []; this.hidePanel(); }
+    logo(sub) {
+      const l = this.txt(640, 74, 'VAMPIRE HUNTER', { fontFamily: TITLE_FONT, fontSize: '92px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 10 })
+        .setOrigin(0.5).setDepth(2900);
+      const s = this.txt(640, 136, sub, { fontSize: '24px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 })
+        .setOrigin(0.5).setDepth(2900);
+      this.menu.push(l, s);
+    }
+    card(x, y, w, h, onPick, hot = false) {
+      const g = this.add.graphics().setDepth(2950);
+      g.fillStyle(0x000000, 0.3); g.fillRoundedRect(x - w / 2 + 5, y - h / 2 + 8, w, h, 18);
+      g.fillStyle(0x140c28, 0.95); g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 18);
+      g.lineStyle(3, hot ? 0xffcf5a : 0x7a55c8, 1); g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 18);
+      const z = this.add.zone(x, y, w, h).setInteractive({ useHandCursor: true }).setDepth(2960);
+      z.on('pointerdown', () => { Sfx.init(); onPick(); });
+      this.menu.push(g, z);
+      return g;
+    }
+    menuPrep() {
+      this.state = 'menu';
+      this.clearMenu();
+      this.setHudVisible(false);
+      this.hideGlow();
+      this.vamps.forEach(v => this.removeVamp(v)); this.vamps = [];
+      this.hunter.setVisible(false); this.shadowH.setVisible(false);
+      Music.want('title-theme');
+    }
+
+    showProfiles() {
+      this.menuPrep();
+      this.state = 'profiles';
+      this.logo('Who is hunting today?');
+      this.refreshKeyboard('1234n', '');
+      this.drawSpace(false);
+      this.tipText.setText('Each hunter keeps their own progress, rewards and daily hunt on this device. Press a number to pick yours.');
+      const ps = Store.data.profiles;
+      const slots = ps.length + (ps.length < 4 ? 1 : 0);
+      const cw = 230, gap = 24, x0 = 640 - ((slots - 1) * (cw + gap)) / 2;
+      ps.forEach((p, i) => {
+        const x = x0 + i * (cw + gap), y = 345;
+        this.card(x, y, cw, 300, () => this.pickProfile(i), p.id === Store.data.lastId);
+        ensureProfile(p);
+        const spr = this.lookSprite(p.look, x, y + 20, 1.5, 2970, i);
+        const done = (p.days[todayKey()] || {}).done;
+        const streak = dayStreak(p);
+        this.menu.push(spr,
+          this.txt(x, y - 128, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 44, p.name, { fontSize: '28px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 80, done ? 'Daily hunt done today' : `Today ${fmtMin(todayMs(p))} of 20:00`, { fontSize: '16px', fontStyle: '500', color: done ? '#7be08f' : '#e4d9fb' }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 104, streak ? `${streak}-day streak` : `${p.sessions} daily hunts done`, { fontSize: '16px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0.5).setDepth(2970));
+      });
+      if (ps.length < 4) {
+        const x = x0 + ps.length * (cw + gap), y = 345;
+        this.card(x, y, cw, 300, () => this.startNaming());
+        this.menu.push(
+          this.txt(x, y - 128, 'N', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y - 30, '+', { fontSize: '96px', fontStyle: '700', color: '#7a55c8' }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 60, 'New hunter', { fontSize: '26px', fontStyle: '700' }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 94, 'Press N', { fontSize: '16px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0.5).setDepth(2970));
+      }
+    }
+    pickProfile(i) {
+      const p = Store.data.profiles[i]; if (!p) return;
+      Sfx.click();
+      this.profile = ensureProfile(p); Store.data.lastId = p.id; Store.save();
+      this.showModes();
+    }
+    startNaming() {
+      if (Store.data.profiles.length >= 4) return;
+      this.menuPrep();
+      this.state = 'naming';
+      this.nameBuf = '';
+      this.logo('A new hunter joins the guild');
+      this.refreshKeyboard(ALPHA, '');
+      this.tipText.setText('Typing your own name is great practice. Use Backspace to fix a mistake.');
+      this.showPanel({ y: 350, h: 280, title: 'What is your name?', body: '\n', footer: 'Press ENTER to join   ·   ESC to go back' });
+      this.nameText = this.txt(0, 0, '', { fontSize: '44px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5);
+      this.panel.add(this.nameText);
+      this.drawName();
+    }
+    drawName() { this.nameText.setText((this.nameBuf || '') + '_'); }
+    finishNaming() {
+      const name = this.nameBuf.trim();
+      if (!name) { Sfx.miss(); return; }
+      const p = ensureProfile(newProfile(name.charAt(0).toUpperCase() + name.slice(1)));
+      Store.data.profiles.push(p); Store.data.lastId = p.id; Store.save();
+      this.profile = p;
+      Sfx.fanfare();
+      this.showModes();
+    }
+
+    showModes() {
+      this.menuPrep();
+      this.state = 'modes';
+      const p = this.profile;
+      this.logo(`Choose your hunt, ${p.name}`);
+      this.refreshKeyboard('12345cs', '');
+      this.drawSpace(false);
+      const done = (p.days[todayKey()] || {}).done, ms = todayMs(p), streak = dayStreak(p);
+      this.tipText.setText(done
+        ? `You finished today's 20-minute hunt. Extra practice still makes you faster!`
+        : `Today's hunt: ${fmtMin(ms)} of 20:00. Any mode counts toward your daily hunt.`);
+      MODE_ORDER.forEach((key, i) => {
+        const M = MODES[key], prog = p.modes[key] || {};
+        const y = 196 + i * 70, x = 520;
+        this.card(x, y, 640, 60, () => this.pickMode(key), key === Store.data.lastMode);
+        this.menu.push(
+          this.txt(x - 300, y, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 258, y - 11, M.name, { fontSize: '22px', fontStyle: '700' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 258, y + 13, M.keysLabel, { fontSize: '14px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x + 300, y, prog.bestWave ? `Best: wave ${prog.bestWave}\n${(prog.bestScore || 0).toLocaleString()} points` : 'Not tried yet',
+            { fontSize: '15px', fontStyle: '600', color: prog.bestWave ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
+      });
+      // daily hunt box
+      const bx = 1020, by = 285;
+      this.card(bx, by, 330, 230, () => {});
+      const g = this.add.graphics().setDepth(2970);
+      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 130, by - 38, 260, 12, 6);
+      g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(bx - 130, by - 38, Math.max(12, 260 * Math.min(1, ms / SESSION_MS)), 12, 6);
+      const weak = this.weakKeys(3);
+      this.menu.push(g,
+        this.txt(bx, by - 96, 'DAILY HUNT', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2' }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
+        this.txt(bx, by - 66, done ? 'Done for today!' : `${fmtMin(ms)} of 20:00`, { fontSize: '28px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by + 6, `Day streak: ${streak}   ·   Hunts done: ${p.sessions}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by + 64, weak.length ? `Keys to practice:\n${weak.map(k => k.toUpperCase()).join('   ')}` : 'Play a round and I will\nfind your tricky keys.',
+          { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970),
+        this.txt(640, 538, '1 to 5 pick a hunt   ·   C capitals   ·   S shop   ·   ESC switch hunter', { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
+      this.drawCapsToggle();
+      // shop entry
+      const sx = 1020, sy = 491;
+      this.card(sx, sy, 330, 52, () => this.showShop());
+      this.menu.push(
+        this.txt(sx - 150, sy, 'S', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(sx - 112, sy, 'Shop', { fontSize: '20px', fontStyle: '700' }).setOrigin(0, 0.5).setDepth(2970),
+        this.add.image(sx + 40, sy, 'coin').setDepth(2970),
+        this.txt(sx + 56, sy, `${p.coins.toLocaleString()} coins`, { fontSize: '18px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0, 0.5).setDepth(2970));
+    }
+    drawCapsToggle() {
+      const p = this.profile, on = !!p.caps, x = 1020, y = 432;
+      this.card(x, y, 330, 52, () => this.toggleCaps(), on);
+      this.menu.push(
+        this.txt(x - 150, y, 'C', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(x - 112, y - 10, `Capitals: ${on ? 'ON' : 'OFF'}`, { fontSize: '19px', fontStyle: '700', color: on ? '#7be08f' : '#ffffff' }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(x - 112, y + 12, on ? 'Use Shift for capital letters · 1.5× points' : 'Turn on for Shift practice and 1.5× points', { fontSize: '13px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970));
+    }
+    toggleCaps() {
+      this.profile.caps = !this.profile.caps; Store.save();
+      Sfx.click();
+      this.showModes();
+    }
+    // ---------- Shop ----------
+    itemState(it) {
+      const p = this.profile;
+      const equipped = it.tab === 'bolts' ? p.bolt === it.id : p.look === it.id;
+      if (equipped) return 'equipped';
+      if (p.owned[it.id]) return 'owned';
+      if (it.need && !NEEDS[it.need].ok(p)) return 'locked';
+      if (it.ultimate) return 'owned';   // earned, not bought
+      return 'forsale';
+    }
+    showShop(tab = this.shopTab || 'hunters', msg = '') {
+      this.menuPrep();
+      this.state = 'shop';
+      if (tab !== this.shopTab) this.shopSel = 0;
+      this.shopTab = tab;
+      const p = this.profile, items = CATALOG[tab].items;
+      this.shopSel = Phaser.Math.Clamp(this.shopSel || 0, 0, items.length - 1);
+      this.refreshKeyboard('123', '');
+      this.drawSpace(false);
+      this.tipText.setText('Earn coins by stopping vampires, clearing waves, beating Count Moonfang and finishing your daily hunt.');
+      this.menu.push(
+        this.txt(640, 58, 'HUNTER SHOP', { fontFamily: TITLE_FONT, fontSize: '72px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 9 }).setOrigin(0.5).setDepth(2900),
+        this.add.image(588, 114, 'coin').setScale(1.3).setDepth(2900),
+        this.txt(606, 114, `${p.coins.toLocaleString()} coins`, { fontSize: '24px', fontStyle: '700', color: '#ffcf5a', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0, 0.5).setDepth(2900));
+      SHOP_TABS.forEach((t, i) => {
+        const x = 640 + (i - 1) * 190, y = 160, on = t === tab;
+        this.card(x, y, 170, 42, () => this.showShop(t), on);
+        this.menu.push(this.txt(x, y, `${i + 1}  ${CATALOG[t].title}`, { fontSize: '19px', fontStyle: '700', color: on ? '#ffcf5a' : '#ffffff' }).setOrigin(0.5).setDepth(2970));
+      });
+      const cols = 3, cw = 340, ch = 104, gx = 16, gy = 12;
+      const rows = Math.ceil(items.length / cols);
+      const y0 = 236 + (3 - rows) * (ch + gy) / 2;
+      items.forEach((it, i) => {
+        const col = i % cols, row = Math.floor(i / cols);
+        const x = 640 + (col - 1) * (cw + gx), y = y0 + row * (ch + gy);
+        const st = this.itemState(it), sel = i === this.shopSel;
+        this.card(x, y, cw, ch, () => { if (this.shopSel === i) this.shopAct(it); else { this.shopSel = i; this.showShop(tab); } }, sel);
+        // preview
+        if (tab === 'bolts') {
+          const key = this.textures.exists('bolt-' + it.id) ? 'bolt-' + it.id : 'bolt';
+          const img = this.add.image(x - 112, y, key).setScale(key === 'bolt' ? 1.2 : 1.3).setDepth(2970);
+          if (st === 'locked') img.setTint(0x3a2a55);
+          this.menu.push(img);
+        } else {
+          const spr = this.lookSprite(it.id, x - 112, y + 44, 0.95, 2970, i);
+          if (st === 'locked') spr.setTintFill(0x3a2a55);
+          this.menu.push(spr);
+        }
+        let status, color = '#cbbcec';
+        if (st === 'equipped') { status = 'Equipped'; color = '#7be08f'; }
+        else if (st === 'owned') { status = it.ultimate ? 'Earned! Press ENTER to wear' : 'Owned · ENTER to wear'; color = '#e4d9fb'; }
+        else if (st === 'locked') { status = `Locked: ${NEEDS[it.need].text} (${NEEDS[it.need].prog(p)})`; color = '#ffb547'; }
+        else { status = `${it.price} coins`; color = p.coins >= it.price ? '#ffcf5a' : '#ff9b9b'; }
+        this.menu.push(
+          this.txt(x - 50, y - 26, it.name + (it.ultimate ? '  ★' : ''), { fontSize: '19px', fontStyle: '700', color: it.ultimate ? '#ffcf5a' : '#ffffff' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 50, y - 3, it.blurb, { fontSize: '13px', fontStyle: '500', color: '#9a8bc2' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 50, y + 26, status, { fontSize: '14px', fontStyle: '700', color, wordWrap: { width: 210 } }).setOrigin(0, 0.5).setDepth(2970));
+      });
+      this.menu.push(
+        this.txt(640, 512, msg, { fontSize: '19px', fontStyle: '700', color: '#ffcf5a', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970),
+        this.txt(640, 538, '1 to 3 tabs   ·   arrow keys choose   ·   ENTER buy or wear   ·   ESC back', { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
+    }
+    shopMove(dx, dy) {
+      const n = CATALOG[this.shopTab].items.length;
+      let i = this.shopSel + dx + dy * 3;
+      if (i < 0 || i >= n) return;
+      this.shopSel = i; Sfx.key(); this.showShop(this.shopTab);
+    }
+    shopAct(it) {
+      const p = this.profile, st = this.itemState(it);
+      let msg = '';
+      if (st === 'equipped') msg = `You are already using ${it.name}.`;
+      else if (st === 'owned') {
+        p.owned[it.id] = true;
+        if (it.tab === 'bolts') p.bolt = it.id; else p.look = it.id;
+        Sfx.click(); msg = `Now using ${it.name}!`;
+      } else if (st === 'locked') { Sfx.miss(); msg = `Locked. ${NEEDS[it.need].text} to unlock it.`; }
+      else if (p.coins >= it.price) {
+        p.coins -= it.price; p.owned[it.id] = true;
+        if (it.tab === 'bolts') p.bolt = it.id; else p.look = it.id;
+        if (!Music.sting('reward-unlocked')) Sfx.big();
+        msg = `You got ${it.name}!`;
+      } else { Sfx.miss(); msg = `You need ${(it.price - p.coins).toLocaleString()} more coins for ${it.name}.`; }
+      Store.save();
+      this.showShop(this.shopTab, msg);
+    }
+
+    // ---------- Coins and achievements ----------
+    addCoins(n) {
+      const c = Math.round(n * (this.caps ? CAPS_BONUS : 1));
+      this.profile.coins += c; this.coinsEarned += c;
+      return c;
+    }
+    checkUnlocks() {
+      const p = this.profile;
+      Object.values(ITEM).forEach(it => {
+        if (!it.need || p.announced[it.id] || !NEEDS[it.need].ok(p)) return;
+        p.announced[it.id] = true;
+        if (it.ultimate) p.owned[it.id] = true;
+        this.time.delayedCall(400, () => {
+          this.banner(it.ultimate ? `${it.name} earned!` : `${it.name} unlocked!`, 260);
+          if (!Music.sting('reward-unlocked')) Sfx.big();
+        });
+      });
+      Store.save();
+    }
+
+    pickMode(key) {
+      Sfx.click();
+      Store.data.lastMode = key; Store.save();
+      this.startGame(key);
+    }
+
+    // ---------- Learning: per-key stats for this hunter ----------
+    keyStat(k) { const ks = this.profile.keyStats; return ks[k] || (ks[k] = { hit: 0, miss: 0, ms: 0 }); }
+    keyWeight(k) {
+      const s = this.profile && this.profile.keyStats[k];
+      if (!s || s.hit + s.miss < 3) return 1.6;                 // new keys get extra practice
+      const missRate = s.miss / (s.hit + s.miss + 2);
+      const avg = s.hit ? s.ms / s.hit : 1500;
+      const slow = Phaser.Math.Clamp((avg - 500) / 1500, 0, 1);
+      return 1 + missRate * 5 + slow * 1.5;
+    }
+    weakKeys(n) {
+      if (!this.profile) return [];
+      return Object.entries(this.profile.keyStats)
+        .filter(([, s]) => s.hit + s.miss >= 5)
+        .map(([k]) => [k, this.keyWeight(k)])
+        .filter(([, w]) => w > 1.5)
+        .sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k);
+    }
+    weighted(items, wf) {
+      const ws = items.map(wf), total = ws.reduce((a, b) => a + b, 0);
+      let r = Math.random() * total;
+      for (let i = 0; i < items.length; i++) { r -= ws[i]; if (r <= 0) return items[i]; }
+      return items[items.length - 1];
+    }
+
+    // ---------- Flow ----------
+    startGame(modeKey, wave = 1) {
+      this.menuPrep();
+      this.hunter.setVisible(true); this.shadowH.setVisible(true);
+      this.setLook(this.profile.look);
+      this.battleMusic = this.nextMusic = null;
+      const prog = this.profile.modes[modeKey] || {};
+      Object.assign(this, {
+        modeKey, wave, startWave: wave, hearts: MAX_HEARTS, score: 0, streak: 0, bestStreak: 0,
+        correct: 0, wrong: 0, kills: 0, activeMs: 0, missed: {}, target: null, clearing: false,
+        pace: Phaser.Math.Clamp(prog.pace || 0.9, 0.75, 1.5), lastKeyAt: 0, sessionCheered: false, saveClock: 0,
+        caps: !!this.profile.caps, coinsEarned: 0,
+      });
+      this.updateHearts();
+      this.setHudVisible(true);
+      this.introWave(null);
+    }
+
+    introWave(clearedNote) {
+      this.state = 'intermission';
+      this.cfg = waveConfig(this.modeKey, this.wave);
+      const cfg = this.cfg;
+      this.refreshKeyboard(cfg.keys, cfg.newKeys || '');
+      const capsHere = this.caps && /[a-z]/.test(cfg.keys);
+      if (capsHere) this.drawShift(true);
+      this.tipText.setText(cfg.tip);
+      this.hideGlow();
+      this.drawSpace(true);
+      this.updateHud();
+      const first = !clearedNote && this.wave === this.startWave;
+      let what;
+      if (cfg.newKeys) {
+        const ks = [...cfg.newKeys];
+        const finger = FINGER_NAMES[FINGER[physKey(ks[0])]].toLowerCase();
+        what = `New keys: ${ks.map(k => k.toUpperCase()).join('  ')}  (${SHIFTED[ks[0]] ? 'Shift + ' : ''}${finger} fingers)`;
+      } else if (cfg.mode === 'pairs') what = 'New: some vampires carry two-letter words.';
+      else if (cfg.mode === 'gen') what = 'Vampires carry numbers now.';
+      else if (cfg.mode === 'letters') what = 'Letters from all over the keyboard.';
+      else if (this.wave <= MODES[this.modeKey].waves.length) what = `Vampires carry ${cfg.words[0].length}-letter words now.`;
+      else what = 'Endless night: they keep getting faster.';
+      const bossLine = (cfg.boss ? '\nWatch out: Count Moonfang shows up at the end! Type all his words to chase him off.' : '') +
+        (capsHere && first ? '\nCapitals are on: hold Shift with your other hand for capital letters. Points ×1.5!' : '');
+      const sessionLine = this.sessionCheered === 'pending' ? this.sessionCheer() : '';
+      this.showPanel({
+        y: 300, h: (clearedNote ? 330 : 290) + (cfg.boss ? 60 : 0) + (sessionLine ? 60 : 0) + (capsHere && first ? 60 : 0),
+        title: clearedNote ? `Wave ${this.wave - 1} cleared!` : `Wave ${this.wave}`,
+        body: sessionLine + (clearedNote ? clearedNote + '\n\n' : '') + (clearedNote ? `Next up, wave ${this.wave}. ` : '') + what + '\n' + cfg.tip + bossLine,
+        footer: first ? 'SPACE to start   ·   ESC for menu   ·   Grown-ups: ← → change wave' : 'Press SPACE when you are ready   ·   ESC for menu',
+      });
+    }
+    sessionCheer() {
+      this.sessionCheered = true;
+      return `Daily hunt complete! That is ${this.profile.sessions} so far. +100 coins!\n\n`;
+    }
+
+    beginWave() {
+      this.hidePanel();
+      this.drawSpace(false);
+      this.state = 'playing';
+      this.spawned = 0;
+      this.bossSpawned = false;
+      this.battleMusic = this.nextMusic || pickBattle(this.modeKey, this.wave, this.battleMusic);
+      this.nextMusic = pickBattle(this.modeKey, this.wave + 1, this.battleMusic);
+      Music.want(this.battleMusic);
+      Music.prefetch(this.nextMusic);
+      const moving = this.sceneTransition(TRACK_SCENE[this.battleMusic]);
+      this.spawnClock = moving ? 1900 : 500;   // nobody spawns until the hunter has landed
+      this.time.delayedCall(moving ? 1000 : 0, () => this.banner('Wave ' + this.wave));
+    }
+
+    waveCleared() {
+      if (this.state !== 'playing') return;
+      if (!Music.sting('wave-cleared')) Sfx.fanfare();
+      const healed = this.hearts < MAX_HEARTS;
+      if (healed) { this.hearts++; this.updateHearts(); }
+      const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
+      prog.bestWave = Math.max(prog.bestWave || 0, this.wave);
+      prog.pace = this.pace;
+      const coins = this.addCoins(10);
+      if (this.caps && this.wave >= MODES[this.modeKey].waves.length) this.profile.ach.capsCleared[this.modeKey] = true;
+      this.checkUnlocks();
+      this.saveProfile();
+      this.wave++;
+      this.introWave((healed ? 'You found a garlic snack: +1 heart!' : 'Not a scratch on you. Nice hunting!') + `   +${coins} coins`);
+    }
+
+    pause() {
+      if (this.state !== 'playing') return;
+      this.state = 'paused';
+      this.tweens.pauseAll(); this.time.paused = true;
+      this.showPanel({ y: 300, h: 230, title: 'Paused', body: 'Take a breath and put your fingers back on the home row.', footer: 'SPACE to keep hunting   ·   ESC for menu' });
+    }
+    resume() {
+      this.hidePanel();
+      this.tweens.resumeAll(); this.time.paused = false;
+      this.state = 'playing';
+    }
+    quitToModes() {
+      this.tweens.resumeAll(); this.time.paused = false;
+      this.recordGame();
+      this.showModes();
+    }
+
+    recordGame() {
+      const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
+      prog.bestScore = Math.max(prog.bestScore || 0, this.score);
+      const a = this.profile.ach;
+      if (this.correct >= 40) a.bestWpm = Math.max(a.bestWpm, this.wpm());
+      if (this.correct + this.wrong >= 60) a.bestAcc = Math.max(a.bestAcc, this.accuracy());
+      this.checkUnlocks();
+      prog.pace = Phaser.Math.Clamp(this.pace * 0.95, 0.75, 1.5);   // next game starts a touch easier than this one ended
+      this.saveProfile();
+    }
+    saveProfile() { if (this.profile) Store.save(); }
+
+    addPlayTime(ms) {
+      const p = this.profile, k = todayKey();
+      const day = p.days[k] || (p.days[k] = { ms: 0, done: false });
+      day.ms += ms;
+      if (!day.done && day.ms >= SESSION_MS) {
+        day.done = true; p.sessions = (p.sessions || 0) + 1;
+        this.addCoins(100);
+        this.sessionCheered = 'pending';
+        if (!Music.sting('session-complete')) Sfx.big();
+        this.banner('Daily hunt complete!', 150);
+        this.saveProfile();
+      }
+      this.saveClock += ms;
+      if (this.saveClock > 5000) { this.saveClock = 0; this.saveProfile(); }
+    }
+
+    gameOver() {
+      this.state = 'over';
+      this.overReady = false;
+      this.target = null;
+      Sfx.lose();
+      Music.stopCurrent();
+      this.time.delayedCall(1500, () => { if (this.state === 'over') Music.want('title-theme'); });
+      this.vamps.forEach(v => { if (!v.dead) { v.dead = true; this.batAway(v, -1); } });
+      const prog = this.profile.modes[this.modeKey] || {};
+      const isBest = this.score > (prog.bestScore || 0);
+      this.recordGame();
+      const tricky = Object.entries(this.missed).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const trickyLine = tricky.length
+        ? 'Keys to practice: ' + tricky.map(([k, n]) => `${k.toUpperCase()} (${n})`).join('   ')
+        : 'No missed keys. Sharp shooting!';
+      const sessionLine = this.sessionCheered === 'pending' ? this.sessionCheer() : '';
+      this.time.delayedCall(700, () => {
+        this.hideGlow();
+        this.drawSpace(true);
+        this.showPanel({
+          y: 300, h: 380 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
+          body: sessionLine + `Score ${this.score.toLocaleString()}${isBest ? '   (new best!)' : ''}\n` +
+                `Waves cleared: ${this.wave - this.startWave}    Vampires stopped: ${this.kills}\n` +
+                `Accuracy: ${this.accuracy()}%    Speed: ${this.wpm()} WPM    Best streak: ${this.bestStreak}\n\n` +
+                trickyLine + `\nCoins earned: ${this.coinsEarned}   ·   Daily hunt: ${fmtMin(todayMs(this.profile))} of 20:00`,
+          footer: 'Press SPACE to continue',
+        });
+        this.time.delayedCall(900, () => { this.overReady = true; });
+      });
+    }
+
+    // ---------- Input ----------
+    onKey(e) {
+      Sfx.init();
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const k = e.key;
+      if ([' ', '/', "'", 'Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) e.preventDefault();
+      switch (this.state) {
+        case 'profiles':
+          if (/^[1-4]$/.test(k)) this.pickProfile(+k - 1);
+          else if (k === 'n' || k === 'N') this.startNaming();
+          return;
+        case 'naming':
+          if (k === 'Escape') this.showProfiles();
+          else if (k === 'Enter') this.finishNaming();
+          else if (k === 'Backspace') { this.nameBuf = this.nameBuf.slice(0, -1); this.drawName(); }
+          else if (k.length === 1 && /[A-Za-z0-9 \-]/.test(k) && this.nameBuf.length < 12) { this.nameBuf += k; Sfx.key(); this.drawName(); }
+          return;
+        case 'modes':
+          if (k === 'Escape') this.showProfiles();
+          else if (/^[1-5]$/.test(k)) this.pickMode(MODE_ORDER[+k - 1]);
+          else if (k === 'c' || k === 'C') this.toggleCaps();
+          else if (k === 's' || k === 'S') this.showShop();
+          return;
+        case 'intermission':
+          if (k === ' ') this.beginWave();
+          else if (k === 'Escape') this.quitToModes();
+          else if ((k === 'ArrowRight' || k === 'ArrowLeft') && this.wave === this.startWave && this.kills === 0) {
+            this.wave = Phaser.Math.Clamp(this.wave + (k === 'ArrowRight' ? 1 : -1), 1, 30); this.startWave = this.wave;
+            this.introWave(null);
+          }
+          return;
+        case 'paused':
+          if (k === ' ') this.resume(); else if (k === 'Escape') this.quitToModes();
+          return;
+        case 'shop': {
+          const ti = '123'.indexOf(k);
+          if (k === 'Escape') this.showModes();
+          else if (ti >= 0) this.showShop(SHOP_TABS[ti]);
+          else if (k === 'ArrowLeft') this.shopMove(-1, 0);
+          else if (k === 'ArrowRight') this.shopMove(1, 0);
+          else if (k === 'ArrowUp') this.shopMove(0, -1);
+          else if (k === 'ArrowDown') this.shopMove(0, 1);
+          else if (k === 'Enter' || k === ' ') this.shopAct(CATALOG[this.shopTab].items[this.shopSel]);
+          return;
+        }
+        case 'over':
+          if (k === ' ' && this.overReady) this.showModes();
+          return;
+      }
+      if (this.state !== 'playing') return;
+      if (k === 'Escape') { this.pause(); return; }
+      if (k === 'Backspace') {
+        if (this.target) { const t = this.target; t.typed = 0; this.target = null; this.redrawLabel(t); }
+        return;
+      }
+      if (k.length !== 1 || k === ' ') return;
+      this.typeChar(this.caps ? k : k.toLowerCase());   // with Capitals off, Caps Lock or Shift can't cause a miss
+    }
+
+    typeChar(c) {
+      const now = this.time.now;
+      this.vamps.forEach(a => a.pendingWord && this.nextBossWord(a));   // typing on before the bolt lands
+      const alive = this.vamps.filter(v => !v.dead);
+      let v = this.target && !this.target.dead ? this.target : null;
+      let expected;
+      if (v) expected = v.word[v.typed];
+      else {
+        this.target = null;
+        const cands = alive.filter(a => a.word[0] === c).sort((a, b) => a.x - b.x);
+        if (cands.length) { v = cands[0]; this.target = v; expected = c; }
+        else { const closest = alive.sort((a, b) => a.x - b.x)[0]; expected = closest ? closest.word[0] : null; }
+      }
+      if (v && c === expected) {
+        const rt = Math.min(3000, now - Math.max(this.lastKeyAt, v.seenAt || now));
+        const st = this.keyStat(physKey(c)); st.hit++; st.ms += Math.max(150, rt);
+        this.hit(v, c);
+      } else this.mistake(c, expected, v);
+      this.lastKeyAt = now;
+    }
+
+    hit(v, c) {
+      this.correct++; this.streak++;
+      this.bestStreak = Math.max(this.bestStreak, this.streak);
+      this.flashKey(c, true);
+      v.typed++;
+      if (v.typed >= v.word.length) { this.target = null; this.redrawLabel(v); this.shoot(v); }
+      else { Sfx.key(); this.redrawLabel(v); }
+    }
+
+    mistake(c, expected, v) {
+      if (!expected) return; // nothing on screen to aim at, so no penalty
+      this.wrong++; this.streak = 0;
+      this.missed[physKey(expected)] = (this.missed[physKey(expected)] || 0) + 1;
+      this.keyStat(physKey(expected)).miss++;
+      Sfx.miss();
+      this.flashKey(c, false);
+      if (v) { v.shakeUntil = this.time.now + 220; v.tRest.setColor('#ff7b7b'); this.time.delayedCall(220, () => v.tRest && v.tRest.active && v.tRest.setColor('#ffffff')); }
+    }
+
+    // ---------- Enemies ----------
+    pickWord() {
+      const cfg = this.cfg;
+      const used = new Set(this.vamps.filter(v => !v.dead).map(v => v.word[0]));
+      let w = 'f';
+      for (let tries = 0; tries < 12; tries++) {
+        if (cfg.mode === 'letters' || (cfg.mode === 'pairs' && Math.random() < 0.3)) {
+          const pool = [...(cfg.newKeys && Math.random() < 0.4 ? cfg.newKeys : cfg.keys)];
+          w = this.weighted(pool, k => this.keyWeight(k));          // weak keys come up more often
+        } else if (cfg.mode === 'gen') {
+          const n = Phaser.Math.Between(cfg.genLen[0], cfg.genLen[1]), pool = [...cfg.keys];
+          w = ''; for (let i = 0; i < n; i++) w += this.weighted(pool, k => this.keyWeight(k));
+        } else {
+          const cands = Phaser.Utils.Array.Shuffle(cfg.words.slice()).slice(0, 6);
+          w = this.weighted(cands, word => [...word].reduce((m, k) => Math.max(m, this.keyWeight(k)), 1));
+        }
+        if (w.length === 1 || !used.has(w[0])) break;
+      }
+      if (this.caps && /[a-z]/.test(w)) {
+        // Capitals mode: some single letters are capitals, and some words start with a capital.
+        if (w.length === 1) { if (Math.random() < 0.45) w = w.toUpperCase(); }
+        else if (Math.random() < 0.5) w = w[0].toUpperCase() + w.slice(1);
+      }
+      return w;
+    }
+    pickLane() {
+      let best = 0, bestD = -1;
+      for (let i = 0; i < LANES.length; i++) {
+        const inLane = this.vamps.filter(v => !v.dead && v.lane === i);
+        const room = inLane.length ? Math.min(...inLane.map(v => SPAWN_X - v.x)) : 9999;
+        const d = room + Math.random() * 60;
+        if (d > bestD) { bestD = d; best = i; }
+      }
+      return best;
+    }
+    pickType(word) {
+      const r = Math.random();
+      if (word.length === 1) return this.wave >= 3 && r < 0.25 ? 'bat' : 'fledgling';
+      if (word.length === 2) return r < 0.6 ? 'ghoul' : 'fledgling';
+      if (word.length >= 5) return r < 0.5 ? 'armored' : 'fledgling';
+      if (word.length === 4) return r < 0.4 ? 'armored' : r < 0.6 ? 'ghoul' : 'fledgling';
+      return r < 0.3 ? 'armored' : r < 0.5 ? 'ghoul' : 'fledgling';
+    }
+    labelUp(v) { return v.T.flying ? 170 : v.T.h + 33; }
+    hitY(v) { return v.T.flying ? v.y - 95 : v.y - v.T.h * 0.5; }
+    attackX(v) { return ATTACK_X + (v.boss ? 50 : 0); }
+
+    spawnVamp(type, wordIn, queue) {
+      const word = wordIn || this.pickWord();
+      type = type || this.pickType(word);
+      const T = TYPES[type];
+      const lane = T.boss ? 1 : this.pickLane(), y = LANES[lane];
+      const v = {
+        type, T, word, display: word, typed: 0, lane, x: T.boss ? W - 170 : SPAWN_X, y,
+        speed: this.cfg.speed * this.pace * T.speed * Phaser.Math.FloatBetween(0.92, 1.08),
+        walk: Math.random() * 6, dead: false, shakeUntil: 0, holdUntil: 0, boss: !!T.boss, queue: queue || [],
+      };
+      v.shadow = this.add.ellipse(v.x, y, T.boss ? 110 : 70, T.flying ? 10 : 16, 0x000000, T.flying ? 0.2 : 0.35).setDepth(y - 1);
+      v.spr = this.add.sprite(v.x, y, T.sheet, 0).setOrigin(T.ox, T.oy).setScale(2).setDepth(y);
+      if (T.anim) v.spr.play({ key: T.anim, startFrame: Phaser.Math.Between(0, 5) });
+      if (T.flying) this.tweens.add({ targets: v.spr, scaleY: { from: 2, to: 1.35 }, duration: 130, yoyo: true, repeat: -1 });
+      v.plate = this.add.graphics();
+      v.tDone = this.txt(0, 0, '', { fontSize: '30px', fontStyle: '700', color: '#7be08f' }).setOrigin(0, 0.5);
+      v.tRest = this.txt(0, 0, '', { fontSize: '30px', fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
+      const parts = [v.plate, v.tDone, v.tRest];
+      if (v.boss) {
+        v.tBoss = this.txt(0, -42, '', { fontSize: '16px', fontStyle: '700', color: '#ffcf5a', stroke: '#2a0d16', strokeThickness: 4 }).setOrigin(0.5);
+        parts.push(v.tBoss);
+      }
+      v.label = this.add.container(v.x, y - this.labelUp(v), parts).setDepth(1500 + y);
+      this.redrawLabel(v);
+      this.vamps.push(v);
+      if (!v.boss) this.spawned++;
+      return v;
+    }
+    spawnBoss() {
+      const words = this.cfg.boss.slice();
+      const v = this.spawnVamp('count', words.shift(), words);
+      this.banner('Count Moonfang!');
+      this.burst(v.x, this.hitY(v), 30, 1.3);
+      Sfx.tone(110, 0.6, 'sawtooth', 0.06, 70); Sfx.tone(165, 0.6, 'sawtooth', 0.04, 100, 0.15);
+      this.bossCast(v);
+      Music.want('boss-fight');
+    }
+    bossCast(v) {
+      v.holdUntil = this.time.now + 950;
+      v.spr.play('c-cast');
+      v.spr.once('animationcomplete-c-cast', () => { if (!v.removed) v.spr.play('c-walk'); });
+    }
+    redrawLabel(v) {
+      const done = v.display.slice(0, v.typed), rest = v.display.slice(v.typed);
+      v.tDone.setText(done); v.tRest.setText(rest);
+      const wDone = done ? v.tDone.width : 0, total = wDone + v.tRest.width;
+      v.tDone.setX(-total / 2); v.tRest.setX(-total / 2 + wDone);
+      const pw = Math.max(46, total + 26), ph = 46, locked = this.target === v;
+      const edge = locked ? 0xffcf5a : v.boss ? 0xd94848 : 0x7a55c8;
+      const g = v.plate; g.clear();
+      g.fillStyle(locked ? 0x2e1f05 : 0x140c28, 0.92); g.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 12);
+      g.lineStyle(3, edge, 1); g.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 12);
+      g.fillStyle(edge, 1); g.fillTriangle(-7, ph / 2, 7, ph / 2, 0, ph / 2 + 8);
+      if (v.tBoss) {
+        const left = v.queue.length + 1;
+        v.tBoss.setText(`COUNT MOONFANG  ·  ${left} word${left === 1 ? '' : 's'} left`);
+      }
+    }
+    removeVamp(v) {
+      v.removed = true;
+      this.tweens.killTweensOf(v.spr);
+      [v.spr, v.shadow, v.label].forEach(o => o && o.active && o.destroy());
+    }
+
+    // Pace adapts to the player: stop vampires far away and they come faster; get bitten and they slow down.
+    adjustPace(delta) { this.pace = Phaser.Math.Clamp(this.pace + delta, 0.7, 1.8); }
+
+    shoot(v) {
+      const finishing = !v.boss || v.queue.length === 0;
+      // A doomed enemy can't be targeted or bite any more, but keeps walking until the bolt lands.
+      if (finishing) { v.dead = true; v.doomed = true; this.kills++; }
+      if (!v.boss) {
+        const far = (v.x - ATTACK_X) / (SPAWN_X - ATTACK_X);
+        this.adjustPace(far > 0.6 ? 0.03 : far > 0.4 ? 0.012 : far < 0.2 ? -0.04 : 0);
+      }
+      const gain = Math.round((10 * v.word.length * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
+      this.score += gain;
+      Sfx.shoot();
+      this.hunter.play(this.lookId + '-shoot');
+      if (finishing) this.addCoins(v.word.length + (v.boss ? 30 : 0));
+      const sx = this.boltX, sy = this.boltY, boltId = this.profile.bolt;
+      const bkey = this.textures.exists('bolt-' + boltId) ? 'bolt-' + boltId : 'bolt';
+      const spin = boltId === 'garlic';
+      const bolt = this.add.image(sx, sy, bkey).setRotation(Phaser.Math.Angle.Between(sx, sy, v.x, this.hitY(v))).setDepth(1400);
+      const dist = Phaser.Math.Distance.Between(sx, sy, v.x, this.hitY(v));
+      if (!finishing) v.pendingWord = v.queue.shift();
+      const flight = { t: 0 };
+      this.tweens.add({
+        targets: flight, t: 1, duration: Math.max(80, dist / 2400 * 1000),
+        onUpdate: () => {   // home in on the enemy while it keeps walking
+          const tx = v.x, ty = v.T.flying && v.spr.active ? v.spr.y : this.hitY(v);
+          bolt.setPosition(sx + (tx - sx) * flight.t, sy + (ty - sy) * flight.t).setRotation(spin ? flight.t * 12 : Phaser.Math.Angle.Between(sx, sy, tx, ty));
+        },
+        onComplete: () => { bolt.destroy(); v.doomed = false; if (finishing) this.vanquish(v, gain); else this.bossHit(v, gain); },
+      });
+    }
+    burst(x, y, n, scale = 1) {
+      const puff = this.add.particles(x, y, 'puff', {
+        speed: { min: 60 * scale, max: 230 * scale }, scale: { start: 0.9 * scale, end: 0 }, alpha: { start: 0.85, end: 0 },
+        lifespan: 600, tint: BOLT_FX[(this.profile && this.profile.bolt) || 'oak'] || BOLT_FX.oak, emitting: false,
+      }).setDepth(1450);
+      puff.explode(n);
+      const sparks = this.add.particles(x, y, 'spark', {
+        speed: { min: 120 * scale, max: 300 * scale }, scale: { start: 0.8, end: 0 }, lifespan: 500, tint: 0xffcf5a, emitting: false,
+      }).setDepth(1451);
+      sparks.explode(Math.ceil(n / 2));
+      this.time.delayedCall(900, () => { puff.destroy(); sparks.destroy(); });
+    }
+    scorePop(x, y, gain) {
+      const pop = this.txt(x, y - 70, '+' + gain, { fontSize: '28px', fontStyle: '700', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 5 })
+        .setOrigin(0.5).setDepth(2400);
+      this.tweens.add({ targets: pop, y: y - 120, alpha: 0, duration: 800, onComplete: () => pop.destroy() });
+    }
+    nextBossWord(v) {
+      if (!v.pendingWord) return;
+      v.word = v.display = v.pendingWord; v.pendingWord = null; v.typed = 0;
+      this.redrawLabel(v);
+    }
+    bossHit(v, gain) {
+      if (v.removed) return;
+      this.nextBossWord(v);
+      Sfx.poof();
+      const y = this.hitY(v);
+      this.burst(v.x, y, 10, 0.7);
+      this.scorePop(v.x, y, gain);
+      v.spr.setTintFill(0xffffff);
+      this.time.delayedCall(90, () => v.spr.active && v.spr.clearTint());
+      v.x = Math.min(SPAWN_X - 60, v.x + 50);   // a small knock back; he walks faster to make up for it
+    }
+    vanquish(v, gain) {
+      Sfx.poof();
+      const y = this.hitY(v);
+      this.burst(v.x, y, v.boss ? 40 : 18, v.boss ? 1.6 : 1);
+      this.scorePop(v.x, y, gain);
+      if (v.boss) { this.profile.ach.bossKills++; this.checkUnlocks(); this.banner('Moonfang flees!'); if (!Music.sting('wave-cleared')) Sfx.fanfare(); Music.want(this.battleMusic || 'battle-loop'); }
+      this.batAway(v, 1);
+    }
+    batAway(v, dir) {
+      const bat = this.add.image(v.x, this.hitY(v), 'batFly').setScale(v.boss ? 1.2 : 0.6).setDepth(1460).setFlipX(dir > 0);
+      this.removeVamp(v);
+      this.tweens.add({ targets: bat, scaleY: { from: bat.scaleX, to: bat.scaleX * 0.5 }, duration: 110, yoyo: true, repeat: 8 });
+      this.tweens.add({
+        targets: bat, x: v.x + dir * Phaser.Math.Between(180, 320), y: -60, alpha: 0.3,
+        duration: 1400, ease: 'Sine.in', onComplete: () => bat.destroy(),
+      });
+    }
+    vampAttack(v) {
+      if (this.target === v) this.target = null;
+      this.hearts = Math.max(0, this.hearts - (v.boss ? 2 : 1));
+      this.adjustPace(-0.15);
+      this.updateHearts();
+      Sfx.hurt();
+      this.cameras.main.shake(v.boss ? 260 : 160, v.boss ? 0.01 : 0.006);
+      this.hunter.play(this.lookId + '-hurt');
+      this.hunter.setTintFill(0xff6b6b);
+      this.time.delayedCall(120, () => this.hunter.clearTint());
+      const ouch = this.txt(HUNTER_X, HUNTER_Y - 200, v.boss ? 'Ouch! -2' : 'Ouch!', { fontSize: '26px', fontStyle: '700', color: '#ff7b7b', stroke: '#2a0d16', strokeThickness: 5 })
+        .setOrigin(0.5).setDepth(2400);
+      this.tweens.add({ targets: ouch, y: HUNTER_Y - 240, alpha: 0, duration: 800, onComplete: () => ouch.destroy() });
+      if (v.boss) {
+        // The Count vanishes in smoke and reappears further back, still carrying his word.
+        this.burst(v.x, this.hitY(v), 20, 1.2);
+        v.x = Math.min(SPAWN_X - 60, v.x + 560); this.nextBossWord(v); v.typed = 0; this.redrawLabel(v);
+        this.bossCast(v);
+      } else {
+        v.dead = true;
+        if (v.type === 'fledgling') v.spr.play('v-bite');
+        this.tweens.add({ targets: [v.spr], x: HUNTER_X + 70, duration: 140, yoyo: true, onComplete: () => this.batAway(v, 1) });
+      }
+      if (this.hearts <= 0) this.gameOver();
+    }
+
+    update(time, delta) {
+      if (this.state !== 'playing') return;
+      const step = Math.min(delta, 100), dt = step / 1000;
+      this.activeMs += step;
+      this.addPlayTime(step);
+      this.spawnClock -= delta;
+      if (this.spawned < this.cfg.count && this.spawnClock <= 0) {
+        this.spawnVamp();
+        this.spawnClock = this.cfg.gap / this.pace * Phaser.Math.FloatBetween(0.8, 1.15);
+      }
+      if (this.cfg.boss && !this.bossSpawned && this.spawned >= this.cfg.count && this.vamps.every(v => v.dead)) {
+        this.bossSpawned = true;
+        this.spawnBoss();
+      }
+      for (const v of this.vamps) {
+        if (v.removed || (v.dead && !v.doomed)) continue;
+        if (time >= v.holdUntil) v.x -= v.speed * dt;
+        if (!v.seenAt && v.x < W - 30) v.seenAt = time;
+        v.walk += dt * 9;
+        const sy = v.T.flying ? v.y - 95 + Math.sin(v.walk * 0.7) * 14 : v.y;
+        v.spr.setPosition(v.x, sy);
+        v.shadow.setPosition(v.x, v.y);
+        const shake = time < v.shakeUntil ? Math.sin(time * 0.09) * 6 : 0;
+        v.label.setPosition(v.x + shake, v.y - this.labelUp(v));
+        if (!v.dead && v.x <= this.attackX(v)) this.vampAttack(v);
+        if (this.state !== 'playing') break;
+      }
+      this.vamps = this.vamps.filter(v => !v.removed);
+      if (this.state === 'playing' && this.spawned >= this.cfg.count && (!this.cfg.boss || this.bossSpawned) && this.vamps.length === 0 && !this.clearing) {
+        this.clearing = true;
+        this.time.delayedCall(650, () => { this.clearing = false; this.waveCleared(); });
+      }
+      if (this.state === 'playing') this.updateHud();
+      this.updateNextKey();
+    }
+  }
+
+  function boot() {
+    const el = document.getElementById('loading'); if (el) el.remove();
+    new Phaser.Game({
+      type: Phaser.AUTO, parent: 'game', width: W, height: H, backgroundColor: '#0d0a1a',
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      input: { keyboard: false },
+      scene: [Hunt],
+    });
+  }
+  const fonts = document.fonts
+    ? Promise.all(['700 30px Fredoka', '500 20px Fredoka', '600 18px Fredoka', '50px Creepster'].map(f => document.fonts.load(f)))
+    : Promise.resolve();
+  Promise.race([fonts, new Promise(r => setTimeout(r, 2500))]).catch(() => {}).then(boot);
+})();
+</script>

@@ -1,0 +1,19 @@
+{
+ "bat": "6c7f319f-ec5b-48ac-8b0f-196853329197",
+ "armored": "ccc4000d-9b90-445c-8757-6898e2f71eba",
+ "ghoul": "bc91facf-b623-4992-b9cc-2ea98bbf960b",
+ "count": "19bc5931-1979-47f3-a589-4425dbaa2ec4",
+ "vamp": "fb43d61d-f4a4-4952-b51b-514cec73bb39",
+ "hunter": "248b7c1d-e5f1-48c2-86af-772d57bd704d",
+ "hunter_skins": {
+  "ivy": "cccadb76-2337-40d5-add9-6426dea223a5",
+  "grimsby": "07636aa9-2825-419e-9602-bbed25234d1f",
+  "clank": "84c1a6d9-7dfc-4c5e-b918-01b971e58cf4",
+  "knight": "fba2b5fb-3a7f-4a00-8547-fae66d4ad6d3",
+  "ninja": "f6468246-21c4-409a-9ff5-ccaa3f96d386",
+  "ranger": "b8c7a43b-48c6-4a49-bfe1-0224364ae3f3",
+  "pirate": "8a403dd3-472a-4f0e-88b0-ef8a2cd7bf85",
+  "sunfire": "4ea2672c-fe3a-4c43-9830-4bc8cf4464de",
+  "nightbat": "ad281bd4-b6eb-46ea-8238-b1e506620f5c"
+ }
+}

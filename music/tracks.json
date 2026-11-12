@@ -1,0 +1,62 @@
+{
+ "title-theme": {
+  "loop": true,
+  "seconds": 31.994,
+  "samples_44100": 1410957
+ },
+ "battle-loop": {
+  "loop": true,
+  "seconds": 27.007,
+  "samples_44100": 1191012
+ },
+ "boss-fight": {
+  "loop": true,
+  "seconds": 106.662,
+  "samples_44100": 4703794
+ },
+ "wave-cleared": {
+  "loop": false,
+  "seconds": 4.091,
+  "samples_44100": 180398
+ },
+ "reward-unlocked": {
+  "loop": false,
+  "seconds": 8.6,
+  "samples_44100": 379260
+ },
+ "session-complete": {
+  "loop": false,
+  "seconds": 17.2,
+  "samples_44100": 758520
+ },
+ "battle-forest-creep": {
+  "loop": true,
+  "seconds": 34.733,
+  "samples_44100": 1531707
+ },
+ "battle-moonlight-waltz": {
+  "loop": true,
+  "seconds": 54.126,
+  "samples_44100": 2386956
+ },
+ "battle-courtyard-march": {
+  "loop": true,
+  "seconds": 90.678,
+  "samples_44100": 3998909
+ },
+ "battle-bat-cave-bounce": {
+  "loop": true,
+  "seconds": 86.273,
+  "samples_44100": 3804642
+ },
+ "battle-crypt-groove": {
+  "loop": true,
+  "seconds": 124.797,
+  "samples_44100": 5503551
+ },
+ "battle-rooftop-chase": {
+  "loop": true,
+  "seconds": 44.8,
+  "samples_44100": 1975702
+ }
+}
