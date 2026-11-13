@@ -8,6 +8,7 @@
    - Coins and a shop with hunters, outfits and bolt skins.
    - Achievement unlocks and the ultimate Sunfire Champion outfit.
    - Seven settings with matching battle music and fades between waves.
+4. **No peeking.** The on-screen keyboard is covered in the real game and only shown in a practice mode that earns nothing.
 
 ## Next
 

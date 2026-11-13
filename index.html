@@ -124,6 +124,7 @@
   const physKey = c => SHIFTED[c] || c.toLowerCase();
   const needsShift = c => !!SHIFTED[c] || c !== c.toLowerCase();
   const CAPS_BONUS = 1.5;
+  const PRACTICE_COLOR = '#5ec8ff', PRACTICE_EDGE = 0x5ec8ff;   // practice mode is always blue so it never looks like the real hunt
   const FINGER_COLORS = [0xff7eb3, 0xffb547, 0x7be08f, 0x5ec8ff];
   const FINGER_NAMES = ['Pinky', 'Ring', 'Middle', 'Pointer'];
   const KB_STEP = 37, KB_KEY = 31, KB_HOME_X = 473.5;
@@ -584,7 +585,7 @@
     buildHud() {
       this.heartIcons = [];
       for (let i = 0; i < MAX_HEARTS; i++) this.heartIcons.push(this.add.image(36 + i * 40, 34, 'heart').setDepth(2500));
-      this.sessionText = this.txt(20, 58, '', { fontSize: '15px', fontStyle: '600', color: '#e4d9fb' }).setDepth(2500);
+      this.sessionText = this.txt(20, 58, '', { fontSize: '15px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setDepth(2500);
       this.sessionBar = this.add.graphics().setDepth(2500);
       this.coinIcon = this.add.image(31, 108, 'coin').setDepth(2500);
       this.coinText = this.txt(48, 108, '', { fontSize: '17px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0, 0.5).setDepth(2500);
@@ -603,7 +604,8 @@
       this.setHudVisible(false);
     }
     setHudVisible(v) {
-      [this.waveText, this.statsText, this.scoreText, this.streakText, this.sessionText, this.sessionBar, this.coinIcon, this.coinText, ...this.heartIcons].forEach(o => o.setVisible(v));
+      [this.waveText, this.statsText, this.scoreText, this.streakText, this.sessionText, ...this.heartIcons].forEach(o => o.setVisible(v));
+      [this.sessionBar, this.coinIcon, this.coinText].forEach(o => o.setVisible(v && !this.practice));   // practice earns nothing, so no coins or hunt bar
     }
     updateHearts() {
       this.heartIcons.forEach((h, i) => h.setTexture(i < this.hearts ? 'heart' : 'heartEmpty'));
@@ -612,9 +614,16 @@
     accuracy() { const t = this.correct + this.wrong; return t ? Math.round(this.correct / t * 100) : 100; }
     wpm() { return this.activeMs > 4000 ? Math.round((this.correct / 5) / (this.activeMs / 60000)) : 0; }
     updateHud() {
-      this.waveText.setText(`${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
-      this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps ? '   ·   Capitals ×1.5' : ''}`);
-      this.scoreText.setText(this.score.toLocaleString());
+      this.waveText.setText(`${this.practice ? 'Practice  ·  ' : ''}${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
+      this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps && !this.practice ? '   ·   Capitals ×1.5' : ''}`);
+      if (this.practice) {
+        this.scoreText.setText('PRACTICE').setColor(PRACTICE_COLOR);
+        this.streakText.setText(this.streak ? `Streak ${this.streak}` : '');
+        this.sessionText.setText('Practice: no points or coins').setColor(PRACTICE_COLOR);
+        return;
+      }
+      this.scoreText.setText(this.score.toLocaleString()).setColor('#f4ecff');
+      this.sessionText.setColor('#e4d9fb');
       const m = this.mult();
       this.streakText.setText(this.streak ? `Streak ${this.streak}${m > 1 ? '   ×' + m : ''}` : '');
       this.drawSession();
@@ -632,12 +641,14 @@
     // ---------- On-screen keyboard ----------
     buildKeyboard() {
       this.keyPos = {}; this.keyGfx = {}; this.keyTxt = {};
+      this.kbObjs = [];
+      const K = o => { this.kbObjs.push(o); return o; };
       KB_ROWS.forEach(row => {
         [...row.chars].forEach((ch, i) => {
           const x = row.x0 + i * KB_STEP, y = row.y;
           this.keyPos[ch] = { x, y };
-          this.keyGfx[ch] = this.add.graphics().setDepth(2001);
-          this.keyTxt[ch] = this.txt(x, y - 1, ch.toUpperCase(), { fontSize: '16px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003);
+          this.keyGfx[ch] = K(this.add.graphics().setDepth(2001));
+          this.keyTxt[ch] = K(this.txt(x, y - 1, ch.toUpperCase(), { fontSize: '16px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003));
         });
       });
       const bottom = KB_ROWS[3];
@@ -645,24 +656,37 @@
         left:  { x: bottom.x0 - KB_STEP / 2 - 36, y: bottom.y },
         right: { x: bottom.x0 + 9 * KB_STEP + KB_STEP / 2 + 36, y: bottom.y },
       };
-      this.shiftGfx = this.add.graphics().setDepth(2001);
-      this.shiftTxt = ['left', 'right'].map(s => this.txt(this.shiftPos[s].x, this.shiftPos[s].y, 'SHIFT', { fontSize: '11px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003));
-      this.spaceGfx = this.add.graphics().setDepth(2001);
-      this.spaceTxt = this.txt(640, 703, 'SPACE', { fontSize: '11px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003);
+      this.shiftGfx = K(this.add.graphics().setDepth(2001));
+      this.shiftTxt = ['left', 'right'].map(s => K(this.txt(this.shiftPos[s].x, this.shiftPos[s].y, 'SHIFT', { fontSize: '11px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003)));
+      this.spaceGfx = K(this.add.graphics().setDepth(2001));
+      this.spaceTxt = K(this.txt(640, 703, 'SPACE', { fontSize: '11px', fontStyle: '600' }).setOrigin(0.5).setDepth(2003));
       this.keyGlow = this.add.image(0, 0, 'keyglow').setTint(0xffcf5a).setDepth(2002).setVisible(false);
       this.shiftGlow = this.add.image(0, 0, 'shiftglow').setTint(0xffcf5a).setDepth(2002).setVisible(false);
       this.tweens.add({ targets: [this.keyGlow, this.shiftGlow], alpha: { from: 1, to: 0.4 }, duration: 420, yoyo: true, repeat: -1 });
       this.nextKey = null;
 
-      this.txt(36, 570, 'FINGER COLORS', { fontSize: '13px', fontStyle: '600', color: '#9a8bc2' }).setLetterSpacing(1.5).setDepth(2003);
+      K(this.txt(36, 570, 'FINGER COLORS', { fontSize: '13px', fontStyle: '600', color: '#9a8bc2' }).setLetterSpacing(1.5).setDepth(2003));
       FINGER_NAMES.forEach((name, i) => {
         const y = 602 + i * 26;
-        const g = this.add.graphics().setDepth(2003);
+        const g = K(this.add.graphics().setDepth(2003));
         g.fillStyle(FINGER_COLORS[i], 1); g.fillCircle(46, y, 7);
-        this.txt(62, y, name, { fontSize: '16px', fontStyle: '500' }).setOrigin(0, 0.5).setDepth(2003);
+        K(this.txt(62, y, name, { fontSize: '16px', fontStyle: '500' }).setOrigin(0, 0.5).setDepth(2003));
       });
-      this.txt(160, 602, 'Same color,\nsame finger\non both hands.', { fontSize: '14px', fontStyle: '500', color: '#9a8bc2', lineSpacing: 4 })
-        .setOrigin(0, 0.15).setDepth(2003);
+      K(this.txt(160, 602, 'Same color,\nsame finger\non both hands.', { fontSize: '14px', fontStyle: '500', color: '#9a8bc2', lineSpacing: 4 })
+        .setOrigin(0, 0.15).setDepth(2003));
+
+      // The cover that sits over the keyboard everywhere except practice mode, so eyes stay on the screen.
+      const cg = this.add.graphics().setDepth(2001);
+      cg.fillStyle(0x140c28, 1); cg.fillRoundedRect(24, 562, 902, 148, 16);
+      cg.lineStyle(2, 0x3d2b63, 1); cg.strokeRoundedRect(24, 562, 902, 148, 16);
+      this.kbCover = [cg,
+        this.txt(475, 592, 'Eyes on the vampires!', { fontFamily: TITLE_FONT, fontSize: '32px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 5 }).setOrigin(0.5).setDepth(2003),
+        this.txt(475, 632, 'The keyboard is covered so your fingers learn where the keys are.\nRest on the home row and feel for the little bumps on F and J.',
+          { fontSize: '17px', fontStyle: '500', color: '#e4d9fb', align: 'center', lineSpacing: 4 }).setOrigin(0.5, 0.25).setDepth(2003),
+        this.txt(475, 690, 'Need to see the keys? Press P on the hunt menu for Practice mode (it does not earn points or coins).',
+          { fontSize: '14px', fontStyle: '600', color: '#5ec8ff' }).setOrigin(0.5).setDepth(2003),
+      ];
+      this.kbShown = true;
 
       this.txt(950, 570, 'TIP', { fontSize: '13px', fontStyle: '600', color: '#9a8bc2' }).setLetterSpacing(1.5).setDepth(2003);
       this.tipText = this.txt(950, 594, '', { fontSize: '16px', fontStyle: '500', color: '#e4d9fb', lineSpacing: 4, wordWrap: { width: 300 } })
@@ -671,6 +695,14 @@
       this.refreshKeyboard(HOME, '');
       this.drawShift(false);
       this.drawSpace(true);
+      this.showKeyboard(false);
+    }
+    // The on-screen keyboard is only shown in practice mode. Everywhere else it is covered up.
+    showKeyboard(on) {
+      this.kbShown = on;
+      this.kbObjs.forEach(o => o.setVisible(on));
+      this.kbCover.forEach(o => o.setVisible(!on));
+      if (!on) this.hideGlow();
     }
     drawKey(ch, state) {
       const { x, y } = this.keyPos[ch], g = this.keyGfx[ch], s = KB_KEY;
@@ -709,14 +741,14 @@
       this.spaceTxt.setColor(lit ? '#ffffff' : '#5b4f78');
     }
     flashKey(ch, ok) {
-      const p = this.keyPos[physKey(ch)]; if (!p) return;
+      const p = this.keyPos[physKey(ch)]; if (!p || !this.kbShown) return;
       const g = this.add.graphics().setDepth(2002);
       g.fillStyle(ok ? 0x7be08f : 0xff5a5a, 0.7); g.fillRoundedRect(p.x - KB_KEY / 2, p.y - KB_KEY / 2, KB_KEY, KB_KEY, 6);
       this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
     }
     updateNextKey() {
       let c = null;
-      if (this.state === 'playing') {
+      if (this.state === 'playing' && this.kbShown) {
         if (this.target && !this.target.dead) c = this.target.word[this.target.typed];
         else {
           const alive = this.vamps.filter(v => !v.dead);
@@ -772,11 +804,11 @@
         .setOrigin(0.5).setDepth(2900);
       this.menu.push(l, s);
     }
-    card(x, y, w, h, onPick, hot = false) {
+    card(x, y, w, h, onPick, hot = false, edge = null) {
       const g = this.add.graphics().setDepth(2950);
       g.fillStyle(0x000000, 0.3); g.fillRoundedRect(x - w / 2 + 5, y - h / 2 + 8, w, h, 18);
       g.fillStyle(0x140c28, 0.95); g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 18);
-      g.lineStyle(3, hot ? 0xffcf5a : 0x7a55c8, 1); g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 18);
+      g.lineStyle(3, hot ? 0xffcf5a : edge || 0x7a55c8, 1); g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 18);
       const z = this.add.zone(x, y, w, h).setInteractive({ useHandCursor: true }).setDepth(2960);
       z.on('pointerdown', () => { Sfx.init(); onPick(); });
       this.menu.push(g, z);
@@ -787,6 +819,7 @@
       this.clearMenu();
       this.setHudVisible(false);
       this.hideGlow();
+      this.showKeyboard(false);
       this.vamps.forEach(v => this.removeVamp(v)); this.vamps = [];
       this.hunter.setVisible(false); this.shadowH.setVisible(false);
       Music.want('title-theme');
@@ -829,6 +862,7 @@
       const p = Store.data.profiles[i]; if (!p) return;
       Sfx.click();
       this.profile = ensureProfile(p); Store.data.lastId = p.id; Store.save();
+      this.practice = false;
       this.showModes();
     }
     startNaming() {
@@ -851,6 +885,7 @@
       const p = ensureProfile(newProfile(name.charAt(0).toUpperCase() + name.slice(1)));
       Store.data.profiles.push(p); Store.data.lastId = p.id; Store.save();
       this.profile = p;
+      this.practice = false;
       Sfx.fanfare();
       this.showModes();
     }
@@ -858,42 +893,68 @@
     showModes() {
       this.menuPrep();
       this.state = 'modes';
-      const p = this.profile;
-      this.logo(`Choose your hunt, ${p.name}`);
-      this.refreshKeyboard('12345cs', '');
+      const p = this.profile, pr = !!this.practice;
+      this.showKeyboard(pr);
+      this.logo(pr ? `Practice mode, ${p.name}` : `Choose your hunt, ${p.name}`);
+      this.refreshKeyboard(pr ? '12345cp' : '12345pcs', '');
       this.drawSpace(false);
       const done = (p.days[todayKey()] || {}).done, ms = todayMs(p), streak = dayStreak(p);
-      this.tipText.setText(done
-        ? `You finished today's 20-minute hunt. Extra practice still makes you faster!`
-        : `Today's hunt: ${fmtMin(ms)} of 20:00. Any mode counts toward your daily hunt.`);
+      this.tipText.setText(pr
+        ? 'Practice shows the keyboard and which finger to use. Nothing here counts: no points, coins or daily hunt time.'
+        : done
+          ? `You finished today's 20-minute hunt. Extra practice still makes you faster!`
+          : `Today's hunt: ${fmtMin(ms)} of 20:00. Any mode counts toward your daily hunt.`);
       MODE_ORDER.forEach((key, i) => {
         const M = MODES[key], prog = p.modes[key] || {};
         const y = 196 + i * 70, x = 520;
-        this.card(x, y, 640, 60, () => this.pickMode(key), key === Store.data.lastMode);
+        this.card(x, y, 640, 60, () => this.pickMode(key), !pr && key === Store.data.lastMode, pr ? PRACTICE_EDGE : null);
         this.menu.push(
-          this.txt(x - 300, y, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 300, y, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: pr ? PRACTICE_COLOR : '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
           this.txt(x - 258, y - 11, M.name, { fontSize: '22px', fontStyle: '700' }).setOrigin(0, 0.5).setDepth(2970),
           this.txt(x - 258, y + 13, M.keysLabel, { fontSize: '14px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970),
-          this.txt(x + 300, y, prog.bestWave ? `Best: wave ${prog.bestWave}\n${(prog.bestScore || 0).toLocaleString()} points` : 'Not tried yet',
-            { fontSize: '15px', fontStyle: '600', color: prog.bestWave ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
+          pr
+            ? this.txt(x + 300, y, 'Practice\nkeyboard on', { fontSize: '15px', fontStyle: '600', color: PRACTICE_COLOR, align: 'right' }).setOrigin(1, 0.5).setDepth(2970)
+            : this.txt(x + 300, y, prog.bestWave ? `Best: wave ${prog.bestWave}\n${(prog.bestScore || 0).toLocaleString()} points` : 'Not tried yet',
+              { fontSize: '15px', fontStyle: '600', color: prog.bestWave ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
       });
-      // daily hunt box
-      const bx = 1020, by = 285;
-      this.card(bx, by, 330, 230, () => {});
-      const g = this.add.graphics().setDepth(2970);
-      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 130, by - 38, 260, 12, 6);
-      g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(bx - 130, by - 38, Math.max(12, 260 * Math.min(1, ms / SESSION_MS)), 12, 6);
-      const weak = this.weakKeys(3);
-      this.menu.push(g,
-        this.txt(bx, by - 96, 'DAILY HUNT', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2' }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
-        this.txt(bx, by - 66, done ? 'Done for today!' : `${fmtMin(ms)} of 20:00`, { fontSize: '28px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
-        this.txt(bx, by + 6, `Day streak: ${streak}   ·   Hunts done: ${p.sessions}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
-        this.txt(bx, by + 64, weak.length ? `Keys to practice:\n${weak.map(k => k.toUpperCase()).join('   ')}` : 'Play a round and I will\nfind your tricky keys.',
-          { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970),
-        this.txt(640, 538, '1 to 5 pick a hunt   ·   C capitals   ·   S shop   ·   ESC switch hunter', { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
+      // practice switch
+      const px = 1020, py = 196;
+      this.card(px, py, 330, 52, () => this.togglePractice(), false, PRACTICE_EDGE);
+      this.menu.push(
+        this.txt(px - 150, py, 'P', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: PRACTICE_COLOR, padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(px - 112, py - 10, pr ? 'Back to the real hunt' : 'Practice mode', { fontSize: '19px', fontStyle: '700', color: PRACTICE_COLOR }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(px - 112, py + 12, pr ? 'Keyboard hidden · earn points and coins' : 'Keyboard shown · no points or coins', { fontSize: '13px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970));
+      const bx = 1020, by = 318;
+      if (pr) {
+        // what practice does and does not do
+        this.card(bx, by, 330, 168, () => {}, false, PRACTICE_EDGE);
+        this.menu.push(
+          this.txt(bx, by - 64, 'PRACTICE DOES NOT COUNT', { fontSize: '14px', fontStyle: '700', color: PRACTICE_COLOR }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
+          this.txt(bx, by + 14, 'The keyboard shows where each key is\nand which finger to use.\n\nNo points, coins, unlocks or daily\nhunt time. Your best scores stay safe.',
+            { fontSize: '15px', fontStyle: '500', color: '#e4d9fb', align: 'center', lineSpacing: 3 }).setOrigin(0.5).setDepth(2970));
+      } else {
+        // daily hunt box
+        this.card(bx, by, 330, 168, () => {});
+        const g = this.add.graphics().setDepth(2970);
+        g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 130, by - 24, 260, 12, 6);
+        g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(bx - 130, by - 24, Math.max(12, 260 * Math.min(1, ms / SESSION_MS)), 12, 6);
+        const weak = this.weakKeys(3);
+        this.menu.push(g,
+          this.txt(bx, by - 66, 'DAILY HUNT', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2' }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
+          this.txt(bx, by - 42, done ? 'Done for today!' : `${fmtMin(ms)} of 20:00`, { fontSize: '26px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
+          this.txt(bx, by + 8, `Day streak: ${streak}   ·   Hunts done: ${p.sessions}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
+          this.txt(bx, by + 50, weak.length ? `Keys to practice:\n${weak.map(k => k.toUpperCase()).join('   ')}` : 'Play a round and I will\nfind your tricky keys.',
+            { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970));
+      }
+      this.menu.push(
+        this.txt(640, 538, pr
+          ? '1 to 5 practice a hunt   ·   C capitals   ·   P or ESC back to the real hunt'
+          : '1 to 5 pick a hunt   ·   P practice   ·   C capitals   ·   S shop   ·   ESC switch hunter',
+          { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
       this.drawCapsToggle();
       // shop entry
       const sx = 1020, sy = 491;
+      if (pr) return;
       this.card(sx, sy, 330, 52, () => this.showShop());
       this.menu.push(
         this.txt(sx - 150, sy, 'S', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
@@ -901,13 +962,18 @@
         this.add.image(sx + 40, sy, 'coin').setDepth(2970),
         this.txt(sx + 56, sy, `${p.coins.toLocaleString()} coins`, { fontSize: '18px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0, 0.5).setDepth(2970));
     }
+    togglePractice() {
+      this.practice = !this.practice;
+      Sfx.click();
+      this.showModes();
+    }
     drawCapsToggle() {
       const p = this.profile, on = !!p.caps, x = 1020, y = 432;
       this.card(x, y, 330, 52, () => this.toggleCaps(), on);
       this.menu.push(
         this.txt(x - 150, y, 'C', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
         this.txt(x - 112, y - 10, `Capitals: ${on ? 'ON' : 'OFF'}`, { fontSize: '19px', fontStyle: '700', color: on ? '#7be08f' : '#ffffff' }).setOrigin(0, 0.5).setDepth(2970),
-        this.txt(x - 112, y + 12, on ? 'Use Shift for capital letters · 1.5× points' : 'Turn on for Shift practice and 1.5× points', { fontSize: '13px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970));
+        this.txt(x - 112, y + 12, this.practice ? 'Use Shift for capital letters' : on ? 'Use Shift for capital letters · 1.5× points' : 'Turn on for Shift practice and 1.5× points', { fontSize: '13px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970));
     }
     toggleCaps() {
       this.profile.caps = !this.profile.caps; Store.save();
@@ -1003,11 +1069,13 @@
 
     // ---------- Coins and achievements ----------
     addCoins(n) {
+      if (this.practice) return 0;
       const c = Math.round(n * (this.caps ? CAPS_BONUS : 1));
       this.profile.coins += c; this.coinsEarned += c;
       return c;
     }
     checkUnlocks() {
+      if (this.practice) return;
       const p = this.profile;
       Object.values(ITEM).forEach(it => {
         if (!it.need || p.announced[it.id] || !NEEDS[it.need].ok(p)) return;
@@ -1028,7 +1096,10 @@
     }
 
     // ---------- Learning: per-key stats for this hunter ----------
-    keyStat(k) { const ks = this.profile.keyStats; return ks[k] || (ks[k] = { hit: 0, miss: 0, ms: 0 }); }
+    keyStat(k) {
+      if (this.practice) return { hit: 0, miss: 0, ms: 0 };   // practice with the keyboard showing doesn't change a hunter's key stats
+      const ks = this.profile.keyStats; return ks[k] || (ks[k] = { hit: 0, miss: 0, ms: 0 });
+    }
     keyWeight(k) {
       const s = this.profile && this.profile.keyStats[k];
       if (!s || s.hit + s.miss < 3) return 1.6;                 // new keys get extra practice
@@ -1055,6 +1126,7 @@
     // ---------- Flow ----------
     startGame(modeKey, wave = 1) {
       this.menuPrep();
+      this.showKeyboard(!!this.practice);
       this.hunter.setVisible(true); this.shadowH.setVisible(true);
       this.setLook(this.profile.look);
       this.battleMusic = this.nextMusic = null;
@@ -1093,12 +1165,13 @@
       else if (this.wave <= MODES[this.modeKey].waves.length) what = `Vampires carry ${cfg.words[0].length}-letter words now.`;
       else what = 'Endless night: they keep getting faster.';
       const bossLine = (cfg.boss ? '\nWatch out: Count Moonfang shows up at the end! Type all his words to chase him off.' : '') +
-        (capsHere && first ? '\nCapitals are on: hold Shift with your other hand for capital letters. Points ×1.5!' : '');
+        (capsHere && first ? `\nCapitals are on: hold Shift with your other hand for capital letters.${this.practice ? '' : ' Points ×1.5!'}` : '');
+      const practiceLine = this.practice && first ? 'Practice mode: the keyboard is showing, and nothing here counts for points or coins.\n\n' : '';
       const sessionLine = this.sessionCheered === 'pending' ? this.sessionCheer() : '';
       this.showPanel({
-        y: 300, h: (clearedNote ? 330 : 290) + (cfg.boss ? 60 : 0) + (sessionLine ? 60 : 0) + (capsHere && first ? 60 : 0),
-        title: clearedNote ? `Wave ${this.wave - 1} cleared!` : `Wave ${this.wave}`,
-        body: sessionLine + (clearedNote ? clearedNote + '\n\n' : '') + (clearedNote ? `Next up, wave ${this.wave}. ` : '') + what + '\n' + cfg.tip + bossLine,
+        y: 300, h: (clearedNote ? 330 : 290) + (cfg.boss ? 60 : 0) + (sessionLine ? 60 : 0) + (capsHere && first ? 60 : 0) + (practiceLine ? 90 : 0),
+        title: (this.practice ? 'Practice: ' : '') + (clearedNote ? `Wave ${this.wave - 1} cleared!` : `Wave ${this.wave}`),
+        body: practiceLine + sessionLine + (clearedNote ? clearedNote + '\n\n' : '') + (clearedNote ? `Next up, wave ${this.wave}. ` : '') + what + '\n' + cfg.tip + bossLine,
         footer: first ? 'SPACE to start   ·   ESC for menu   ·   Grown-ups: ← → change wave' : 'Press SPACE when you are ready   ·   ESC for menu',
       });
     }
@@ -1127,15 +1200,18 @@
       if (!Music.sting('wave-cleared')) Sfx.fanfare();
       const healed = this.hearts < MAX_HEARTS;
       if (healed) { this.hearts++; this.updateHearts(); }
-      const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
-      prog.bestWave = Math.max(prog.bestWave || 0, this.wave);
-      prog.pace = this.pace;
-      const coins = this.addCoins(10);
-      if (this.caps && this.wave >= MODES[this.modeKey].waves.length) this.profile.ach.capsCleared[this.modeKey] = true;
-      this.checkUnlocks();
-      this.saveProfile();
+      let coins = 0;
+      if (!this.practice) {
+        const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
+        prog.bestWave = Math.max(prog.bestWave || 0, this.wave);
+        prog.pace = this.pace;
+        coins = this.addCoins(10);
+        if (this.caps && this.wave >= MODES[this.modeKey].waves.length) this.profile.ach.capsCleared[this.modeKey] = true;
+        this.checkUnlocks();
+        this.saveProfile();
+      }
       this.wave++;
-      this.introWave((healed ? 'You found a garlic snack: +1 heart!' : 'Not a scratch on you. Nice hunting!') + `   +${coins} coins`);
+      this.introWave((healed ? 'You found a garlic snack: +1 heart!' : 'Not a scratch on you. Nice hunting!') + (this.practice ? '' : `   +${coins} coins`));
     }
 
     pause() {
@@ -1156,6 +1232,7 @@
     }
 
     recordGame() {
+      if (this.practice) return;   // practice never touches best scores, achievements or saved pace
       const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
       prog.bestScore = Math.max(prog.bestScore || 0, this.score);
       const a = this.profile.ach;
@@ -1168,6 +1245,7 @@
     saveProfile() { if (this.profile) Store.save(); }
 
     addPlayTime(ms) {
+      if (this.practice) return;   // practice doesn't count toward the daily hunt
       const p = this.profile, k = todayKey();
       const day = p.days[k] || (p.days[k] = { ms: 0, done: false });
       day.ms += ms;
@@ -1192,7 +1270,7 @@
       this.time.delayedCall(1500, () => { if (this.state === 'over') Music.want('title-theme'); });
       this.vamps.forEach(v => { if (!v.dead) { v.dead = true; this.batAway(v, -1); } });
       const prog = this.profile.modes[this.modeKey] || {};
-      const isBest = this.score > (prog.bestScore || 0);
+      const isBest = !this.practice && this.score > (prog.bestScore || 0);
       this.recordGame();
       const tricky = Object.entries(this.missed).sort((a, b) => b[1] - a[1]).slice(0, 3);
       const trickyLine = tricky.length
@@ -1202,6 +1280,17 @@
       this.time.delayedCall(700, () => {
         this.hideGlow();
         this.drawSpace(true);
+        if (this.practice) {
+          this.showPanel({
+            y: 300, h: 360, title: 'Practice over',
+            body: `Waves cleared: ${this.wave - this.startWave}    Vampires stopped: ${this.kills}\n` +
+                  `Accuracy: ${this.accuracy()}%    Speed: ${this.wpm()} WPM    Best streak: ${this.bestStreak}\n\n` +
+                  trickyLine + '\nPractice doesn\'t count. Ready for the real hunt?',
+            footer: 'Press SPACE to continue',
+          });
+          this.time.delayedCall(900, () => { this.overReady = true; });
+          return;
+        }
         this.showPanel({
           y: 300, h: 380 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
           body: sessionLine + `Score ${this.score.toLocaleString()}${isBest ? '   (new best!)' : ''}\n` +
@@ -1232,10 +1321,11 @@
           else if (k.length === 1 && /[A-Za-z0-9 \-]/.test(k) && this.nameBuf.length < 12) { this.nameBuf += k; Sfx.key(); this.drawName(); }
           return;
         case 'modes':
-          if (k === 'Escape') this.showProfiles();
+          if (k === 'Escape') { if (this.practice) this.togglePractice(); else this.showProfiles(); }
           else if (/^[1-5]$/.test(k)) this.pickMode(MODE_ORDER[+k - 1]);
+          else if (k === 'p' || k === 'P') this.togglePractice();
           else if (k === 'c' || k === 'C') this.toggleCaps();
-          else if (k === 's' || k === 'S') this.showShop();
+          else if ((k === 's' || k === 'S') && !this.practice) this.showShop();
           return;
         case 'intermission':
           if (k === ' ') this.beginWave();
@@ -1435,7 +1525,7 @@
         const far = (v.x - ATTACK_X) / (SPAWN_X - ATTACK_X);
         this.adjustPace(far > 0.6 ? 0.03 : far > 0.4 ? 0.012 : far < 0.2 ? -0.04 : 0);
       }
-      const gain = Math.round((10 * v.word.length * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
+      const gain = this.practice ? 0 : Math.round((10 * v.word.length * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
       this.score += gain;
       Sfx.shoot();
       this.hunter.play(this.lookId + '-shoot');
@@ -1469,6 +1559,7 @@
       this.time.delayedCall(900, () => { puff.destroy(); sparks.destroy(); });
     }
     scorePop(x, y, gain) {
+      if (!gain) return;   // practice: no points to show
       const pop = this.txt(x, y - 70, '+' + gain, { fontSize: '28px', fontStyle: '700', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 5 })
         .setOrigin(0.5).setDepth(2400);
       this.tweens.add({ targets: pop, y: y - 120, alpha: 0, duration: 800, onComplete: () => pop.destroy() });
@@ -1494,7 +1585,7 @@
       const y = this.hitY(v);
       this.burst(v.x, y, v.boss ? 40 : 18, v.boss ? 1.6 : 1);
       this.scorePop(v.x, y, gain);
-      if (v.boss) { this.profile.ach.bossKills++; this.checkUnlocks(); this.banner('Moonfang flees!'); if (!Music.sting('wave-cleared')) Sfx.fanfare(); Music.want(this.battleMusic || 'battle-loop'); }
+      if (v.boss) { if (!this.practice) this.profile.ach.bossKills++; this.checkUnlocks(); this.banner('Moonfang flees!'); if (!Music.sting('wave-cleared')) Sfx.fanfare(); Music.want(this.battleMusic || 'battle-loop'); }
       this.batAway(v, 1);
     }
     batAway(v, dir) {
