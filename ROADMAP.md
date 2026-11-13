@@ -9,7 +9,8 @@
    - Achievement unlocks and the ultimate Sunfire Champion outfit.
    - Seven settings with matching battle music and fades between waves.
 4. **No peeking.** The on-screen keyboard is covered in the real game and only shown in a practice mode that earns nothing.
-5. **Variety and careful aim.**
+5. **Skips mastered warm-ups.** Each hunter's hunts start at the all-keys wave once they've cleared it cleanly twice.
+6. **Variety and careful aim.**
    - New enemies and a boss for each setting, each with its own trick.
    - Wrong keys cost points, jam the crossbow when they come in a row, and bring the Mega Mutant when there are too many in a wave.
 

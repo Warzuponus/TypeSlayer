@@ -20,6 +20,7 @@ GitHub Pages works as is: serve the repository root from the default branch.
 
 - **Five modes:** home row, top row, bottom row, numbers and symbols, and all keys. Each one goes from single letters to full words.
 - **Adaptive pace.** It speeds up when vampires are stopped far away and slows down after a bite.
+- **Skips the warm-up once it's mastered.** In the four row modes, waves 1 to 4 teach the keys a pair at a time and wave 5 uses the whole row. Clearing wave 5 with 90% accuracy or better in two real hunts masters the warm-up, and from then on that hunter's hunts in that mode start at wave 5. A rough round there (under 75%) takes one clean clear back, so a rusty hunter goes back to wave 1. Practice never counts, always starts at wave 1, and grown-ups can still use ← → on the first wave screen to pick any wave. Saves that already got past wave 5 count as mastered.
 - **Extra practice on weak keys.** It tracks a miss rate and speed for every key and serves the weak ones more often.
 - **No peeking.** The on-screen keyboard is covered in the real game, so kids learn where the keys are by feel.
 - **Practice mode** (press P on the hunt menu) shows the keyboard with finger colors and the next key lit up. It is always blue and earns nothing: no points, coins, unlocks, daily hunt time or best scores, and it doesn't change the weak-key stats.
