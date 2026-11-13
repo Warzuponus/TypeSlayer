@@ -58,5 +58,25 @@
   "loop": true,
   "seconds": 44.8,
   "samples_44100": 1975702
+ },
+ "menu-candlelit-library": {
+  "loop": true,
+  "seconds": 14.402,
+  "samples_44100": 635120
+ },
+ "menu-pumpkin-patch-parade": {
+  "loop": true,
+  "seconds": 38.638,
+  "samples_44100": 1703922
+ },
+ "menu-hunters-moon-overture": {
+  "loop": true,
+  "seconds": 30.01,
+  "samples_44100": 1323442
+ },
+ "menu-midnight-carnival": {
+  "loop": true,
+  "seconds": 32.675,
+  "samples_44100": 1440950
  }
 }
