@@ -21,6 +21,8 @@ GitHub Pages works as is: serve the repository root from the default branch.
 - **Five modes:** home row, top row, bottom row, numbers and symbols, and all keys. Each one goes from single letters to full words.
 - **Adaptive pace.** It speeds up when vampires are stopped far away and slows down after a bite.
 - **Extra practice on weak keys.** It tracks a miss rate and speed for every key and serves the weak ones more often.
+- **No peeking.** The on-screen keyboard is covered in the real game, so kids learn where the keys are by feel.
+- **Practice mode** (press P on the hunt menu) shows the keyboard with finger colors and the next key lit up. It is always blue and earns nothing: no points, coins, unlocks, daily hunt time or best scores, and it doesn't change the weak-key stats.
 - **Capitals toggle.** Shift is required and coins pay 1.5x.
 - **Profiles** for each kid, saved in the browser on that device.
 - **Daily 20-minute hunt** with a reward.
