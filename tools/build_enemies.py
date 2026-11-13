@@ -41,6 +41,7 @@ g = os.path.join(SRC, 'ghost.png')
 if os.path.exists(g):
     im = Image.open(g).convert('RGBA'); bb = im.getbbox()
     if bb: im = im.crop(bb)
+    im = im.transpose(Image.FLIP_LEFT_RIGHT)   # the generated ghost faces right; every enemy must face the hunter on the left
     sheets['ghostImg'] = {'url': b64(im), 'image': True}
     foes['ghost'] = {'img': 'ghostImg'}
     report['ghostImg'] = im.size
