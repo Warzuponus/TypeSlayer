@@ -393,6 +393,9 @@
   const SCENES = Object.assign({
     graveyard: { img: 'graveyard', sky: true, ground: [0x16244a, 0x0b1130], tuft: [0x1c3a3c, 0x23484a, 0x15303a] },
   }, window.VH_SCENES || {});
+  // Menu music: the first menu of a visit plays the title theme (already loaded), later menus pick another song,
+  // and a song that has played for a while on the menu hands over to the next one.
+  const MENU_TRACKS = ['title-theme', 'menu-candlelit-library', 'menu-pumpkin-patch-parade', 'menu-hunters-moon-overture', 'menu-midnight-carnival'];
   const Music = {
     tracks: {
       'title-theme': { loop: true, sec: 31.994 }, 'battle-loop': { loop: true, sec: 27.007 }, 'boss-fight': { loop: true, sec: 106.662 },
@@ -401,6 +404,20 @@
       'battle-forest-creep': { loop: true, lazy: true, sec: 34.733 }, 'battle-crypt-groove': { loop: true, lazy: true, sec: 124.797 },
       'battle-moonlight-waltz': { loop: true, lazy: true, sec: 54.126 }, 'battle-courtyard-march': { loop: true, lazy: true, sec: 90.678 },
       'battle-bat-cave-bounce': { loop: true, lazy: true, sec: 86.273 }, 'battle-rooftop-chase': { loop: true, lazy: true, sec: 44.8 },
+      // menu songs, fetched when the menu picks one
+      'menu-candlelit-library': { loop: true, lazy: true, sec: 14.402 }, 'menu-pumpkin-patch-parade': { loop: true, lazy: true, sec: 38.638 },
+      'menu-hunters-moon-overture': { loop: true, lazy: true, sec: 30.01 }, 'menu-midnight-carnival': { loop: true, lazy: true, sec: 32.675 },
+    },
+    menuLast: null, menuTimer: null,
+    menu() {   // play menu music; keeps a menu song that is already playing
+      if (MENU_TRACKS.includes(this.wanted) && (this.curName === this.wanted || this.loading[this.wanted])) return;
+      const pool = MENU_TRACKS.filter(t => t !== this.menuLast);
+      const name = this.menuLast ? Phaser.Utils.Array.GetRandom(pool) : MENU_TRACKS[0];
+      this.menuLast = name;
+      this.want(name);
+      clearTimeout(this.menuTimer);
+      const secs = Math.max(60, 2 * this.tracks[name].sec);   // at least a minute and two times through, then the next song
+      this.menuTimer = setTimeout(() => { if (this.wanted === name) { this.wanted = null; this.menu(); } }, secs * 1000);
     },
     loading: {}, keep: null,
     ctx: null, out: null, buffers: {}, cur: null, curName: null, wanted: null, on: true,
@@ -913,7 +930,7 @@
       this.showKeyboard(false);
       this.vamps.forEach(v => this.removeVamp(v)); this.vamps = [];
       this.hunter.setVisible(false); this.shadowH.setVisible(false);
-      Music.want('title-theme');
+      Music.menu();
     }
 
     showProfiles() {
@@ -1401,7 +1418,7 @@
       this.target = null;
       Sfx.lose();
       Music.stopCurrent();
-      this.time.delayedCall(1500, () => { if (this.state === 'over') Music.want('title-theme'); });
+      this.time.delayedCall(1500, () => { if (this.state === 'over') Music.menu(); });
       this.vamps.forEach(v => { if (!v.dead) { v.dead = true; this.batAway(v, -1); } });
       const prog = this.profile.modes[this.modeKey] || {};
       const isBest = !this.practice && this.score > (prog.bestScore || 0);
