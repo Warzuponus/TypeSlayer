@@ -9,6 +9,9 @@
    - Achievement unlocks and the ultimate Sunfire Champion outfit.
    - Seven settings with matching battle music and fades between waves.
 4. **No peeking.** The on-screen keyboard is covered in the real game and only shown in a practice mode that earns nothing.
+5. **Variety and careful aim.**
+   - New enemies and a boss for each setting, each with its own trick.
+   - Wrong keys cost points, jam the crossbow when they come in a row, and bring the Mega Mutant when there are too many in a wave.
 
 ## Next
 
@@ -18,17 +21,8 @@
 - Watch the kids play a few sessions and tune speed, word lists and coin prices.
 
 ### More bosses
-Count Moonfang is the only boss today. Ideas:
-- **Each setting gets its own boss**, chosen to match the scene:
-  - A giant bat queen for the bat cave
-  - A werewolf for the forest
-  - A mummy for the crypt
-  - A ghost knight for the courtyard
-- **Boss tricks that teach skills:**
-  - Swapping between shielded and open words
-  - Calling in small bats that carry single letters
-  - A last-stand phrase typed in one go
-- **A boss gallery** in the shop that shows who each kid has beaten.
+- A boss gallery in the shop that shows who each kid has beaten.
+- A last-stand phrase typed in one go at the end of a boss fight.
 
 ### Advanced mode (unlocks with Sunfire Champion)
 - Full sentences with real capitalization and punctuation: periods, commas, question marks and apostrophes.

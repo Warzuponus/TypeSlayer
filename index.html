@@ -32,6 +32,7 @@
 <script src="assets.js"></script>
 <script src="skins.js"></script>
 <script src="scenes.js"></script>
+<script src="enemies.js"></script>
 <script>
 (() => {
   const SHEETS = window.VH_SHEETS || {};
@@ -46,13 +47,48 @@
   const TITLE_FONT = 'Creepster, Impact, fantasy';
 
   // Enemy types: which sprite, where its feet are in the frame, how tall it stands (at 2x) and how fast it moves.
+  // Newer foes come from enemies.js (VH_FOES): sheet keys, feet position and figure height are measured from the art.
+  const FOES = window.VH_FOES || {};
+  const foe = (id, anim, extra) => FOES[id] && FOES[id][anim]
+    ? Object.assign({ sheet: FOES[id][anim].sheet, anim: `${id}-${anim}`, ox: FOES[id][anim].ox, oy: FOES[id][anim].oy, h: FOES[id][anim].fh * (extra.scale || 2) }, extra)
+    : null;
   const TYPES = {
     fledgling: { sheet: 'vampWalk',    anim: 'v-walk', ox: 63 / 124, oy: 105 / 124, h: 172, speed: 1 },
     armored:   { sheet: 'armoredWalk', anim: 'a-walk', ox: 65 / 124, oy: 106 / 124, h: 180, speed: 0.72 },
     ghoul:     { sheet: 'ghoulRun',    anim: 'g-run',  ox: 65 / 132, oy: 112 / 132, h: 184, speed: 1.25 },
-    bat:       { sheet: 'batFly',      anim: null,     ox: 0.5, oy: 0.5, h: 90, speed: 1.2, flying: true },
-    count:     { sheet: 'countWalk',   anim: 'c-walk', ox: 96 / 176, oy: 150 / 176, h: 246, speed: 0.85, boss: true },
+    bat:       { sheet: 'batFly',      anim: null,     ox: 0.5, oy: 0.5, h: 90, speed: 1.2, flying: true, flap: true },
+    // A giant bat that splits into two little letter bats when it is hit.
+    bigbat:    { sheet: 'batFly',      anim: null,     ox: 0.5, oy: 0.5, h: 150, speed: 0.85, flying: true, flap: true, scale: 3.2, tint: 0xc9a3ff, split: true, lu: 215 },
+    // A see-through ghost that drifts forward in bursts.
+    ghost:     FOES.ghost && { sheet: FOES.ghost.img, anim: null, ox: 0.5, oy: 0.5, h: 140, speed: 1.2, flying: true, ghost: true, scale: 2.4, lu: 205 },
+    wolf:      foe('wolf', 'run', { speed: 1.45, fps: 14 }),
+    mummy:     foe('mummy', 'walk', { speed: 0.6, fps: 7 }),
+    // A guard with a shield word in front: type the shield word first, then the vampire's own word.
+    shield:    foe('shield', 'walk', { speed: 0.72, fps: 8, shield: true }),
+    // Bosses. Each setting has its own, with its own trick. Count Moonfang is the default.
+    count:     { sheet: 'countWalk',   anim: 'c-walk', ox: 96 / 176, oy: 150 / 176, h: 246, speed: 0.85, boss: true, name: 'Count Moonfang', cast: 'c-cast', trick: 'knock', flees: 'Moonfang flees!' },
+    batqueen:  foe('batqueen', 'walk', { speed: 0.8, fps: 8, boss: true, name: 'Queen Vespera', cast: 'batqueen-cast', trick: 'bats', flees: 'The Bat Queen flies off!' }),
+    werewolf:  foe('werewolf', 'walk', { speed: 0.62, fps: 9, boss: true, name: 'Grizzlefang', cast: 'werewolf-cast', trick: 'charge', flees: 'Grizzlefang runs home!' }),
+    pharaoh:   foe('pharaoh', 'walk', { speed: 0.6, fps: 7, boss: true, name: 'Pharaoh Mumbles', cast: 'pharaoh-cast', trick: 'minions', extraWords: 2, flees: 'Pharaoh Mumbles unravels!' }),
+    ghostknight: foe('ghostknight', 'walk', { speed: 0.8, fps: 8, boss: true, name: 'The Ghost Knight', cast: 'ghostknight-cast', trick: 'blink', alpha: 0.85, flees: 'The Ghost Knight fades away!' }),
+    // Brought out by too many wrong keys in one wave: slow, huge, and beaten with whole sentences.
+    mutant:    foe('mutant', 'walk', { speed: 0.3, fps: 6, boss: true, mutant: true, scale: 2.3, name: 'Mega Mutant', cast: 'mutant-cast', trick: 'knock', flees: 'The Mutant melts away!' }),
   };
+  Object.keys(TYPES).forEach(k => { if (!TYPES[k]) delete TYPES[k]; });
+  const BOSS_FOR_SCENE = { cave: 'batqueen', forest: 'werewolf', crypt: 'pharaoh', courtyard: 'ghostknight' };
+
+  // ---------- Wrong keys ----------
+  const WRONG_COST = 5;        // points lost for each wrong key
+  const JAM_AFTER = 4;         // this many wrong keys in a row jams the crossbow...
+  const JAM_MS = 3000;         // ...for 3 seconds
+  const MUTANT_AFTER = 15;     // this many wrong keys in one wave brings the Mega Mutant at the end of it
+  const SENTENCES = [
+    'the bat flew over the moon', 'a ghost ate my homework', 'vampires hate garlic pizza', 'the mummy lost his socks',
+    'my crossbow never misses', 'the wolf howls at night', 'count moonfang has bad breath', 'the castle gate is open',
+    'bats sleep upside down', 'a spooky owl said hoot', 'the hunter saves the town', 'type fast and stay calm',
+    'garlic bread keeps vampires away', 'the moon is big and bright', 'skeletons love to dance', 'never trust a smiling bat',
+    'the ghost wore a bedsheet', 'my cape is very fancy', 'the frog jumped in the fog', 'zombies walk very slowly',
+  ];
 
   // ---------- Hunter looks (characters and outfits) ----------
   // Each look has idle, shoot and hurt sheets, where its feet sit in the frame, and where its crossbow tip is (at 2x).
@@ -63,7 +99,7 @@
 
   // ---------- Shop catalog ----------
   const NEEDS = {
-    garlic:  { text: 'Beat Count Moonfang 3 times', ok: p => p.ach.bossKills >= 3, prog: p => `${Math.min(3, p.ach.bossKills)} of 3` },
+    garlic:  { text: 'Beat 3 bosses', ok: p => p.ach.bossKills >= 3, prog: p => `${Math.min(3, p.ach.bossKills)} of 3` },
     holy:    { text: 'Finish a game with 95% accuracy', ok: p => p.ach.bestAcc >= 95, prog: p => `best so far ${p.ach.bestAcc}%` },
     sun:     { text: 'Reach 20 words per minute', ok: p => p.ach.bestWpm >= 20, prog: p => `best so far ${p.ach.bestWpm} WPM` },
     sunfire: { text: 'Beat every mode with Capitals on', ok: p => MODE_ORDER.every(m => p.ach.capsCleared[m]),
@@ -311,6 +347,9 @@
     hurt()  { this.tone(220, 0.3, 'sawtooth', 0.07, 80); this.noise(0.2, 0.1, 400); },
     fanfare() { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.18, 'triangle', 0.06, null, i * 0.1)); },
     big()   { [392, 523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.07, null, i * 0.12)); },
+    jam()   { this.tone(170, 0.09, 'square', 0.08, 70); this.noise(0.18, 0.16, 320); },
+    clunk() { this.tone(120, 0.06, 'square', 0.04, 80); },
+    growl() { this.tone(80, 0.7, 'sawtooth', 0.08, 55); this.tone(120, 0.6, 'sawtooth', 0.05, 70, 0.1); this.noise(0.5, 0.1, 250); },
     lose()  { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.06, null, i * 0.16)); },
   };
 
@@ -482,6 +521,12 @@
       A('g-run', 'ghoulRun', 1, 8, 14, { repeat: -1 });
       A('c-walk', 'countWalk', 1, 8, 8, { repeat: -1 });
       A('c-cast', 'countCast', 0, 8, 10);
+      Object.entries(FOES).forEach(([id, F]) => Object.entries(F).forEach(([anim, a]) => {
+        if (!a || !a.sheet || !SHEETS[a.sheet] || !a.frames) return;
+        const T = Object.values(TYPES).find(t => t.anim === `${id}-${anim}`);
+        const loop = anim !== 'cast';
+        A(`${id}-${anim}`, a.sheet, loop ? 1 : 0, a.frames - 1, loop ? (T && T.fps) || 8 : 10, loop ? { repeat: -1 } : {});
+      }));
 
       this.drawBackground();
       this.vamps = [];
@@ -601,11 +646,41 @@
       this.musicText = this.txt(W - 24, 102, 'Music: on', { fontSize: '15px', fontStyle: '500', color: '#cbbcec' })
         .setOrigin(1, 0).setDepth(2500).setInteractive({ useHandCursor: true });
       this.musicText.on('pointerdown', () => { Sfx.init(); this.musicText.setText('Music: ' + (Music.toggle() ? 'on' : 'off')); });
+      // Wrong-key meters: misses in a row (jams the crossbow) and misses this wave (brings the Mutant).
+      const small = { fontSize: '14px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 };
+      this.jamLabel = this.txt(20, 140, 'Crossbow', small).setOrigin(0, 0.5).setDepth(2500);
+      this.jamGfx = this.add.graphics().setDepth(2500);
+      this.jamNote = this.txt(194, 140, '', Object.assign({}, small, { fontSize: '12px', color: '#9a8bc2' })).setOrigin(0, 0.5).setDepth(2500);
+      this.mutLabel = this.txt(20, 166, '', small).setOrigin(0, 0.5).setDepth(2500);
+      this.mutGfx = this.add.graphics().setDepth(2500);
+      this.jamText = this.txt(HUNTER_X, HUNTER_Y - 232, 'JAMMED!', { fontSize: '26px', fontStyle: '700', color: '#ff7b7b', stroke: '#2a0d16', strokeThickness: 5 })
+        .setOrigin(0.5).setDepth(2400).setVisible(false);
+      this.jamBar = this.add.graphics().setDepth(2400);
       this.setHudVisible(false);
     }
     setHudVisible(v) {
-      [this.waveText, this.statsText, this.scoreText, this.streakText, this.sessionText, ...this.heartIcons].forEach(o => o.setVisible(v));
-      [this.sessionBar, this.coinIcon, this.coinText].forEach(o => o.setVisible(v && !this.practice));   // practice earns nothing, so no coins or hunt bar
+      [this.waveText, this.statsText, this.scoreText, this.streakText, this.sessionText, this.jamLabel, this.jamGfx, this.jamNote, ...this.heartIcons].forEach(o => o.setVisible(v));
+      [this.sessionBar, this.coinIcon, this.coinText, this.mutLabel, this.mutGfx].forEach(o => o.setVisible(v && !this.practice));   // practice earns nothing, so no coins or hunt bar
+      if (!v) { this.jamText.setVisible(false); this.jamBar.clear(); }
+    }
+    drawMeters() {
+      const g = this.jamGfx; g.clear();
+      const jammed = this.jamLeft > 0;
+      for (let i = 0; i < JAM_AFTER; i++) {
+        const x = 104 + i * 22, on = jammed || i < this.wrongRun;
+        g.fillStyle(on ? 0xff5a5a : 0x2c2148, 1); g.fillCircle(x, 140, 7);
+        g.lineStyle(2, on ? 0xffb0b0 : 0x4a3a70, 1); g.strokeCircle(x, 140, 7);
+      }
+      this.jamLabel.setColor(jammed ? '#ff7b7b' : '#e4d9fb');
+      this.jamNote.setText(jammed ? `JAMMED  ${(this.jamLeft / 1000).toFixed(1)}s` : this.practice ? 'Practice: no jams' : `${JAM_AFTER} misses in a row jam it`)
+        .setColor(jammed ? '#ff7b7b' : '#9a8bc2');
+      if (this.practice) return;
+      const m = this.mutGfx; m.clear();
+      const f = Math.min(1, this.waveWrong / MUTANT_AFTER);
+      m.fillStyle(0x2c2148, 1); m.fillRoundedRect(20, 180, 200, 8, 4);
+      if (f > 0) { m.fillStyle(this.mutantDue ? 0x9be15d : f > 0.66 ? 0xff5a5a : f > 0.33 ? 0xffb547 : 0xffcf5a, 1); m.fillRoundedRect(20, 180, Math.max(8, 200 * f), 8, 4); }
+      this.mutLabel.setText(this.mutantDue ? (this.mutantSpawned ? 'Beat the Mega Mutant!' : 'Mega Mutant is coming!') : `Wrong keys this wave  ${this.waveWrong} / ${MUTANT_AFTER}`)
+        .setColor(this.mutantDue ? '#9be15d' : f > 0.66 ? '#ff9b9b' : '#e4d9fb');
     }
     updateHearts() {
       this.heartIcons.forEach((h, i) => h.setTexture(i < this.hearts ? 'heart' : 'heartEmpty'));
@@ -614,6 +689,7 @@
     accuracy() { const t = this.correct + this.wrong; return t ? Math.round(this.correct / t * 100) : 100; }
     wpm() { return this.activeMs > 4000 ? Math.round((this.correct / 5) / (this.activeMs / 60000)) : 0; }
     updateHud() {
+      this.drawMeters();
       this.waveText.setText(`${this.practice ? 'Practice  ·  ' : ''}${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
       this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps && !this.practice ? '   ·   Capitals ×1.5' : ''}`);
       if (this.practice) {
@@ -999,7 +1075,7 @@
       this.shopSel = Phaser.Math.Clamp(this.shopSel || 0, 0, items.length - 1);
       this.refreshKeyboard('123', '');
       this.drawSpace(false);
-      this.tipText.setText('Earn coins by stopping vampires, clearing waves, beating Count Moonfang and finishing your daily hunt.');
+      this.tipText.setText('Earn coins by stopping vampires, clearing waves, beating bosses and finishing your daily hunt.');
       this.menu.push(
         this.txt(640, 58, 'HUNTER SHOP', { fontFamily: TITLE_FONT, fontSize: '72px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 9 }).setOrigin(0.5).setDepth(2900),
         this.add.image(588, 114, 'coin').setScale(1.3).setDepth(2900),
@@ -1136,6 +1212,7 @@
         correct: 0, wrong: 0, kills: 0, activeMs: 0, missed: {}, target: null, clearing: false,
         pace: Phaser.Math.Clamp(prog.pace || 0.9, 0.75, 1.5), lastKeyAt: 0, sessionCheered: false, saveClock: 0,
         caps: !!this.profile.caps, coinsEarned: 0,
+        wrongRun: 0, waveWrong: 0, jamLeft: 0, pointsLost: 0, mutantDue: false, mutantSpawned: false, mutants: 0,
       });
       this.updateHearts();
       this.setHudVisible(true);
@@ -1164,12 +1241,14 @@
       else if (cfg.mode === 'letters') what = 'Letters from all over the keyboard.';
       else if (this.wave <= MODES[this.modeKey].waves.length) what = `Vampires carry ${cfg.words[0].length}-letter words now.`;
       else what = 'Endless night: they keep getting faster.';
-      const bossLine = (cfg.boss ? '\nWatch out: Count Moonfang shows up at the end! Type all his words to chase him off.' : '') +
+      const rulesLine = first && !this.practice
+        ? `\n\nCareful aim! Each wrong key costs ${WRONG_COST} points. ${JAM_AFTER} in a row jam your crossbow for ${JAM_MS / 1000} seconds. ${MUTANT_AFTER} in one wave bring the Mega Mutant!` : '';
+      const bossLine = rulesLine + (cfg.boss ? '\nWatch out: a boss shows up at the end! Type all of its words to chase it off.' : '') +
         (capsHere && first ? `\nCapitals are on: hold Shift with your other hand for capital letters.${this.practice ? '' : ' Points ×1.5!'}` : '');
       const practiceLine = this.practice && first ? 'Practice mode: the keyboard is showing, and nothing here counts for points or coins.\n\n' : '';
       const sessionLine = this.sessionCheered === 'pending' ? this.sessionCheer() : '';
       this.showPanel({
-        y: 300, h: (clearedNote ? 330 : 290) + (cfg.boss ? 60 : 0) + (sessionLine ? 60 : 0) + (capsHere && first ? 60 : 0) + (practiceLine ? 90 : 0),
+        y: 300, h: (clearedNote ? 330 : 290) + (cfg.boss ? 60 : 0) + (rulesLine ? 120 : 0) + (sessionLine ? 60 : 0) + (capsHere && first ? 60 : 0) + (practiceLine ? 90 : 0),
         title: (this.practice ? 'Practice: ' : '') + (clearedNote ? `Wave ${this.wave - 1} cleared!` : `Wave ${this.wave}`),
         body: practiceLine + sessionLine + (clearedNote ? clearedNote + '\n\n' : '') + (clearedNote ? `Next up, wave ${this.wave}. ` : '') + what + '\n' + cfg.tip + bossLine,
         footer: first ? 'SPACE to start   ·   ESC for menu   ·   Grown-ups: ← → change wave' : 'Press SPACE when you are ready   ·   ESC for menu',
@@ -1186,6 +1265,8 @@
       this.state = 'playing';
       this.spawned = 0;
       this.bossSpawned = false;
+      Object.assign(this, { wrongRun: 0, waveWrong: 0, waveLost: 0, mutantDue: false, mutantSpawned: false });
+      this.unjam(true);
       this.battleMusic = this.nextMusic || pickBattle(this.modeKey, this.wave, this.battleMusic);
       this.nextMusic = pickBattle(this.modeKey, this.wave + 1, this.battleMusic);
       Music.want(this.battleMusic);
@@ -1197,6 +1278,7 @@
 
     waveCleared() {
       if (this.state !== 'playing') return;
+      this.unjam(true);
       if (!Music.sting('wave-cleared')) Sfx.fanfare();
       const healed = this.hearts < MAX_HEARTS;
       if (healed) { this.hearts++; this.updateHearts(); }
@@ -1211,7 +1293,9 @@
         this.saveProfile();
       }
       this.wave++;
-      this.introWave((healed ? 'You found a garlic snack: +1 heart!' : 'Not a scratch on you. Nice hunting!') + (this.practice ? '' : `   +${coins} coins`));
+      const missNote = this.practice ? '' : this.waveWrong === 0 ? '\nNo wrong keys at all. Perfect aim!' : `\nWrong keys this wave: ${this.waveWrong} (-${this.waveLost} points)`;
+      Object.assign(this, { wrongRun: 0, waveWrong: 0, waveLost: 0, mutantDue: false, mutantSpawned: false });   // fresh meters for the next wave
+      this.introWave((healed ? 'You found a garlic snack: +1 heart!' : 'Not a scratch on you. Nice hunting!') + (this.practice ? '' : `   +${coins} coins`) + missNote);
     }
 
     pause() {
@@ -1263,6 +1347,7 @@
 
     gameOver() {
       this.state = 'over';
+      this.unjam(true);
       this.overReady = false;
       this.target = null;
       Sfx.lose();
@@ -1292,10 +1377,11 @@
           return;
         }
         this.showPanel({
-          y: 300, h: 380 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
+          y: 300, h: 410 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
           body: sessionLine + `Score ${this.score.toLocaleString()}${isBest ? '   (new best!)' : ''}\n` +
                 `Waves cleared: ${this.wave - this.startWave}    Vampires stopped: ${this.kills}\n` +
                 `Accuracy: ${this.accuracy()}%    Speed: ${this.wpm()} WPM    Best streak: ${this.bestStreak}\n\n` +
+                `Wrong keys: ${this.wrong} (-${this.pointsLost.toLocaleString()} points)${this.mutants ? `   ·   Mutants beaten: ${this.mutants}` : ''}\n` +
                 trickyLine + `\nCoins earned: ${this.coinsEarned}   ·   Daily hunt: ${fmtMin(todayMs(this.profile))} of 20:00`,
           footer: 'Press SPACE to continue',
         });
@@ -1359,13 +1445,14 @@
         if (this.target) { const t = this.target; t.typed = 0; this.target = null; this.redrawLabel(t); }
         return;
       }
-      if (k.length !== 1 || k === ' ') return;
+      if (k.length !== 1 || (k === ' ' && !this.wantsSpace())) return;
       this.typeChar(this.caps ? k : k.toLowerCase());   // with Capitals off, Caps Lock or Shift can't cause a miss
     }
 
     typeChar(c) {
       const now = this.time.now;
       this.vamps.forEach(a => a.pendingWord && this.nextBossWord(a));   // typing on before the bolt lands
+      if (this.jamLeft > 0) { Sfx.clunk(); this.flashKey(c, false); return; }   // jammed: keys do nothing, and don't count as more misses
       const alive = this.vamps.filter(v => !v.dead);
       let v = this.target && !this.target.dead ? this.target : null;
       let expected;
@@ -1378,14 +1465,16 @@
       }
       if (v && c === expected) {
         const rt = Math.min(3000, now - Math.max(this.lastKeyAt, v.seenAt || now));
-        const st = this.keyStat(physKey(c)); st.hit++; st.ms += Math.max(150, rt);
+        if (c !== ' ') { const st = this.keyStat(physKey(c)); st.hit++; st.ms += Math.max(150, rt); }
         this.hit(v, c);
       } else this.mistake(c, expected, v);
       this.lastKeyAt = now;
     }
+    // Space only matters inside the Mutant's sentences. Anywhere else it is ignored, never a miss.
+    wantsSpace() { const t = this.target; return !!(t && !t.dead && t.word[t.typed] === ' '); }
 
     hit(v, c) {
-      this.correct++; this.streak++;
+      this.correct++; this.streak++; this.wrongRun = 0;
       this.bestStreak = Math.max(this.bestStreak, this.streak);
       this.flashKey(c, true);
       v.typed++;
@@ -1396,20 +1485,87 @@
     mistake(c, expected, v) {
       if (!expected) return; // nothing on screen to aim at, so no penalty
       this.wrong++; this.streak = 0;
-      this.missed[physKey(expected)] = (this.missed[physKey(expected)] || 0) + 1;
-      this.keyStat(physKey(expected)).miss++;
+      if (expected !== ' ') {
+        this.missed[physKey(expected)] = (this.missed[physKey(expected)] || 0) + 1;
+        this.keyStat(physKey(expected)).miss++;
+      }
       Sfx.miss();
       this.flashKey(c, false);
       if (v) { v.shakeUntil = this.time.now + 220; v.tRest.setColor('#ff7b7b'); this.time.delayedCall(220, () => v.tRest && v.tRest.active && v.tRest.setColor('#ffffff')); }
+      this.wrongRun++; this.waveWrong++;
+      if (!this.practice) {
+        const lost = Math.min(this.score, WRONG_COST);
+        this.score -= lost; this.pointsLost += lost; this.waveLost += lost;
+        this.minusPop(lost);
+      }
+      if (this.wrongRun >= JAM_AFTER) {
+        if (this.practice) {
+          // practice is gentle: a reminder instead of a jam
+          this.wrongRun = 0;
+          this.floatText(HUNTER_X + 60, HUNTER_Y - 230, 'Slow down! In the real hunt\nthat would jam your crossbow.', PRACTICE_COLOR, 18);
+        } else this.jam();
+      }
+      if (!this.practice && !this.mutantDue && this.waveWrong >= MUTANT_AFTER && TYPES.mutant) {
+        this.mutantDue = true;
+        this.banner('Too many wrong keys!', 170);
+        this.time.delayedCall(1300, () => { if (this.state === 'playing' && !this.mutantSpawned) this.banner('A Mutant is coming...', 170); });
+        Sfx.growl();
+      }
+    }
+    minusPop(n) {
+      this.scoreText.setColor('#ff7b7b');
+      this.time.delayedCall(180, () => this.scoreText.active && !this.practice && this.scoreText.setColor('#f4ecff'));
+      if (!n) return;
+      const pop = this.txt(W - 30, 46, '-' + n, { fontSize: '22px', fontStyle: '700', color: '#ff7b7b', stroke: '#2a0d16', strokeThickness: 4 })
+        .setOrigin(1, 0).setDepth(2500);
+      this.tweens.add({ targets: pop, y: 76, alpha: 0, duration: 700, onComplete: () => pop.destroy() });
+    }
+    floatText(x, y, s, color, size = 22) {
+      const t = this.txt(x, y, s, { fontSize: size + 'px', fontStyle: '700', color, stroke: '#140c28', strokeThickness: 5, align: 'center' })
+        .setOrigin(0.5).setDepth(2400);
+      this.tweens.add({ targets: t, y: y - 30, alpha: 0, delay: 900, duration: 700, onComplete: () => t.destroy() });
+    }
+
+    // ---------- Jammed crossbow ----------
+    jam() {
+      this.jamLeft = JAM_MS; this.wrongRun = 0;
+      Sfx.jam();
+      this.hunter.setTint(0x8f8aa6);
+      this.jamText.setVisible(true).setScale(0.5);
+      this.tweens.add({ targets: this.jamText, scale: 1, duration: 260, ease: 'Back.out' });
+      this.cameras.main.shake(120, 0.004);
+      this.jamSmoke = 0;
+    }
+    unjam(quiet = false) {
+      if (!this.jamText) return;
+      const was = this.jamLeft > 0 && !quiet;
+      this.jamLeft = 0;
+      this.jamText.setVisible(false); this.jamBar.clear();
+      this.hunter.clearTint();
+      if (was && this.state === 'playing') { Sfx.click(); this.floatText(HUNTER_X + 20, HUNTER_Y - 232, 'Fixed!', '#7be08f', 24); }
+    }
+    updateJam(step) {
+      if (this.jamLeft <= 0) return;
+      this.jamLeft -= step;
+      if (this.jamLeft <= 0) { this.unjam(); return; }
+      const g = this.jamBar; g.clear();
+      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(HUNTER_X - 50, HUNTER_Y - 210, 100, 8, 4);
+      g.fillStyle(0xff7b7b, 1); g.fillRoundedRect(HUNTER_X - 50, HUNTER_Y - 210, Math.max(8, 100 * this.jamLeft / JAM_MS), 8, 4);
+      this.jamSmoke -= step;
+      if (this.jamSmoke <= 0) {
+        this.jamSmoke = 260;
+        const p = this.add.image(this.boltX - 10, this.boltY, 'puff').setScale(0.35).setTint(0x9a92b0).setAlpha(0.7).setDepth(1460);
+        this.tweens.add({ targets: p, y: p.y - 40, x: p.x + Phaser.Math.Between(-12, 12), scale: 0.8, alpha: 0, duration: 700, onComplete: () => p.destroy() });
+      }
     }
 
     // ---------- Enemies ----------
-    pickWord() {
+    pickWord(single = false) {
       const cfg = this.cfg;
       const used = new Set(this.vamps.filter(v => !v.dead).map(v => v.word[0]));
       let w = 'f';
       for (let tries = 0; tries < 12; tries++) {
-        if (cfg.mode === 'letters' || (cfg.mode === 'pairs' && Math.random() < 0.3)) {
+        if (single || cfg.mode === 'letters' || (cfg.mode === 'pairs' && Math.random() < 0.3)) {
           const pool = [...(cfg.newKeys && Math.random() < 0.4 ? cfg.newKeys : cfg.keys)];
           w = this.weighted(pool, k => this.keyWeight(k));          // weak keys come up more often
         } else if (cfg.mode === 'gen') {
@@ -1428,6 +1584,25 @@
       }
       return w;
     }
+    // The Mega Mutant's sentences: real sentences once every letter is in play, otherwise
+    // little phrases made only of the keys this wave uses, so it is never unfair.
+    mutantPhrases() {
+      const keys = new Set([...this.cfg.keys].map(c => c.toLowerCase()));
+      const fits = w => [...w].every(c => keys.has(c));
+      const cap = s => this.caps && /[a-z]/.test(s[0]) ? s[0].toUpperCase() + s.slice(1) : s;
+      if ([...ALPHA].every(c => keys.has(c))) return Phaser.Utils.Array.Shuffle(SENTENCES.slice()).slice(0, 2).map(cap);
+      const words = [...new Set([H2, H3, H4, H5, T2, T3, T4, T5, TMIX, B2, B3, B4, B5, A3, A4, A5].flat())].filter(w => w.length >= 2 && fits(w));
+      const out = [];
+      for (let i = 0; i < 3; i++) {
+        const parts = [];
+        for (let j = 0; j < 3; j++) {
+          if (words.length >= 5) parts.push(Phaser.Utils.Array.GetRandom(words));
+          else { let g = ''; const n = Phaser.Math.Between(2, 3); for (let k = 0; k < n; k++) g += this.weighted([...this.cfg.keys], c => this.keyWeight(c)); parts.push(g); }
+        }
+        out.push(cap(parts.join(' ')));
+      }
+      return out;
+    }
     pickLane() {
       let best = 0, bestD = -1;
       for (let i = 0; i < LANES.length; i++) {
@@ -1438,59 +1613,107 @@
       }
       return best;
     }
+    // Which enemy carries this word. Every wave mixes a few kinds; the trickier ones join in later waves.
     pickType(word) {
-      const r = Math.random();
-      if (word.length === 1) return this.wave >= 3 && r < 0.25 ? 'bat' : 'fledgling';
-      if (word.length === 2) return r < 0.6 ? 'ghoul' : 'fledgling';
-      if (word.length >= 5) return r < 0.5 ? 'armored' : 'fledgling';
-      if (word.length === 4) return r < 0.4 ? 'armored' : r < 0.6 ? 'ghoul' : 'fledgling';
-      return r < 0.3 ? 'armored' : r < 0.5 ? 'ghoul' : 'fledgling';
+      const n = word.length, w = this.wave;
+      const alive = t => this.vamps.some(v => !v.dead && v.type === t);
+      const opts = [['fledgling', 3]];
+      if (n === 1) opts.push(['wolf', 1.2], ['mummy', 0.6], ['bat', w >= 3 ? 1.4 : 0]);
+      else if (n === 2) opts.push(['ghoul', 3], ['wolf', 1.5]);
+      else if (n === 3) opts.push(['ghoul', 1.5], ['armored', 1.5], ['wolf', 1], ['mummy', 1]);
+      else opts.push(['armored', 2], ['mummy', 1.6], ['ghoul', n === 4 ? 1 : 0]);
+      if (w >= 2) opts.push(['ghost', 1]);
+      if (w >= 3) opts.push(['shield', 0.9]);
+      if (w >= 4 && !alive('bigbat')) opts.push(['bigbat', 0.6]);
+      const ok = opts.filter(([t, wt]) => wt > 0 && TYPES[t] && this.textures.exists(TYPES[t].sheet));
+      return this.weighted(ok, o => o[1])[0];
     }
-    labelUp(v) { return v.T.flying ? 170 : v.T.h + 33; }
+    labelUp(v) { return v.T.lu || (v.T.flying ? 170 : v.T.h + 33); }
     hitY(v) { return v.T.flying ? v.y - 95 : v.y - v.T.h * 0.5; }
     attackX(v) { return ATTACK_X + (v.boss ? 50 : 0); }
 
-    spawnVamp(type, wordIn, queue) {
+    spawnVamp(type, wordIn, queue, opts = {}) {
       const word = wordIn || this.pickWord();
       type = type || this.pickType(word);
-      const T = TYPES[type];
-      const lane = T.boss ? 1 : this.pickLane(), y = LANES[lane];
+      const T = TYPES[type], sc = T.scale || 2;
+      if (T.shield && !queue) queue = [this.pickWord()];   // the shield word comes first, then the guard's own
+      const lane = opts.lane != null ? opts.lane : T.boss ? 1 : this.pickLane(), y = LANES[lane];
+      const x0 = opts.x != null ? opts.x : T.boss ? W - 170 : SPAWN_X;
       const v = {
-        type, T, word, display: word, typed: 0, lane, x: T.boss ? W - 170 : SPAWN_X, y,
+        type, T, word, display: word, typed: 0, lane, x: x0, y,
         speed: this.cfg.speed * this.pace * T.speed * Phaser.Math.FloatBetween(0.92, 1.08),
-        walk: Math.random() * 6, dead: false, shakeUntil: 0, holdUntil: 0, boss: !!T.boss, queue: queue || [],
+        walk: Math.random() * 6, dead: false, shakeUntil: 0, holdUntil: 0, boss: !!T.boss, queue: queue || [], minion: !!opts.extra,
       };
-      v.shadow = this.add.ellipse(v.x, y, T.boss ? 110 : 70, T.flying ? 10 : 16, 0x000000, T.flying ? 0.2 : 0.35).setDepth(y - 1);
-      v.spr = this.add.sprite(v.x, y, T.sheet, 0).setOrigin(T.ox, T.oy).setScale(2).setDepth(y);
+      v.shadow = this.add.ellipse(v.x, y, T.boss ? 110 * sc / 2 : 70, T.flying ? 10 : 16, 0x000000, T.flying ? 0.2 : 0.35).setDepth(y - 1);
+      v.spr = this.add.sprite(v.x, y, T.sheet, 0).setOrigin(T.ox, T.oy).setScale(sc).setDepth(y);
+      if (T.tint) v.spr.setTint(T.tint);
+      if (T.alpha) v.spr.setAlpha(T.alpha);
       if (T.anim) v.spr.play({ key: T.anim, startFrame: Phaser.Math.Between(0, 5) });
-      if (T.flying) this.tweens.add({ targets: v.spr, scaleY: { from: 2, to: 1.35 }, duration: 130, yoyo: true, repeat: -1 });
+      if (T.flap) this.tweens.add({ targets: v.spr, scaleY: { from: sc, to: sc * 0.68 }, duration: 130, yoyo: true, repeat: -1 });
+      if (T.ghost) this.tweens.add({ targets: v.spr, alpha: { from: 0.85, to: 0.4 }, duration: 900, yoyo: true, repeat: -1 });
       v.plate = this.add.graphics();
       v.tDone = this.txt(0, 0, '', { fontSize: '30px', fontStyle: '700', color: '#7be08f' }).setOrigin(0, 0.5);
       v.tRest = this.txt(0, 0, '', { fontSize: '30px', fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
       const parts = [v.plate, v.tDone, v.tRest];
       if (v.boss) {
-        v.tBoss = this.txt(0, -42, '', { fontSize: '16px', fontStyle: '700', color: '#ffcf5a', stroke: '#2a0d16', strokeThickness: 4 }).setOrigin(0.5);
+        v.tBoss = this.txt(0, -42, '', { fontSize: '16px', fontStyle: '700', color: T.mutant ? '#9be15d' : '#ffcf5a', stroke: '#2a0d16', strokeThickness: 4 }).setOrigin(0.5);
         parts.push(v.tBoss);
       }
       v.label = this.add.container(v.x, y - this.labelUp(v), parts).setDepth(1500 + y);
       this.redrawLabel(v);
       this.vamps.push(v);
-      if (!v.boss) this.spawned++;
+      if (!v.boss && !opts.extra) this.spawned++;
       return v;
     }
     spawnBoss() {
-      const words = this.cfg.boss.slice();
-      const v = this.spawnVamp('count', words.shift(), words);
-      this.banner('Count Moonfang!');
+      let type = BOSS_FOR_SCENE[this.sceneId];
+      if (!TYPES[type] || !this.textures.exists(TYPES[type].sheet)) type = 'count';
+      const T = TYPES[type], words = Phaser.Utils.Array.Shuffle(this.cfg.boss.slice());
+      for (let i = 0; i < (T.extraWords || 0); i++) words.push(this.cfg.words && this.cfg.words.length ? Phaser.Utils.Array.GetRandom(this.cfg.words) : this.pickWord());
+      const v = this.spawnVamp(type, words.shift(), words);
+      this.banner(T.name + '!');
       this.burst(v.x, this.hitY(v), 30, 1.3);
       Sfx.tone(110, 0.6, 'sawtooth', 0.06, 70); Sfx.tone(165, 0.6, 'sawtooth', 0.04, 100, 0.15);
       this.bossCast(v);
       Music.want('boss-fight');
     }
-    bossCast(v) {
-      v.holdUntil = this.time.now + 950;
-      v.spr.play('c-cast');
-      v.spr.once('animationcomplete-c-cast', () => { if (!v.removed) v.spr.play('c-walk'); });
+    spawnMutant() {
+      this.mutantSpawned = true;
+      const words = this.mutantPhrases();
+      const v = this.spawnVamp('mutant', words.shift(), words, { x: W - 300 });
+      v.unit = [...ALPHA].every(c => this.cfg.keys.includes(c)) ? 'sentence' : 'phrase';
+      this.redrawLabel(v);
+      this.banner('MEGA MUTANT!');
+      this.burst(v.x, this.hitY(v), 40, 1.8);
+      this.cameras.main.shake(400, 0.012);
+      Sfx.growl();
+      this.bossCast(v, 1500);
+      this.floatText(640, 250, 'Type its whole sentence, spaces too!', '#9be15d', 24);
+      Music.want('boss-fight');
+    }
+    bossCast(v, hold = 950) {
+      const T = v.T;
+      v.holdUntil = this.time.now + hold;
+      if (T.cast && this.anims.exists(T.cast)) {
+        v.spr.play(T.cast);
+        v.spr.once('animationcomplete-' + T.cast, () => { if (!v.removed) v.spr.play(T.anim); });
+      } else {
+        v.spr.setTintFill(0xffffff); this.time.delayedCall(120, () => v.spr.active && v.spr.clearTint());
+      }
+      if (T.trick === 'bats') this.summon(v, 'bat', 2, 3, true);
+      if (T.trick === 'minions') this.summon(v, 'mummy', 1, 2, false);
+    }
+    // Bosses that call helpers: the Bat Queen's letter bats and Pharaoh Mumbles' little mummies.
+    summon(boss, type, n, cap, single) {
+      if (!TYPES[type]) return;
+      this.time.delayedCall(450, () => {
+        if (boss.removed || this.state !== 'playing') return;
+        const have = this.vamps.filter(a => !a.dead && a.minion).length;
+        for (let i = 0; i < Math.min(n, cap - have); i++) {
+          const m = this.spawnVamp(type, this.pickWord(single), null, { extra: true, x: boss.x - 50 - i * 70, lane: Phaser.Math.Between(0, 2) });
+          this.burst(m.x, this.hitY(m), 8, 0.6);
+        }
+      });
     }
     redrawLabel(v) {
       const done = v.display.slice(0, v.typed), rest = v.display.slice(v.typed);
@@ -1498,14 +1721,24 @@
       const wDone = done ? v.tDone.width : 0, total = wDone + v.tRest.width;
       v.tDone.setX(-total / 2); v.tRest.setX(-total / 2 + wDone);
       const pw = Math.max(46, total + 26), ph = 46, locked = this.target === v;
-      const edge = locked ? 0xffcf5a : v.boss ? 0xd94848 : 0x7a55c8;
+      const edge = locked ? 0xffcf5a : v.T.mutant ? 0x9be15d : v.boss ? 0xd94848 : 0x7a55c8;
       const g = v.plate; g.clear();
       g.fillStyle(locked ? 0x2e1f05 : 0x140c28, 0.92); g.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 12);
       g.lineStyle(3, edge, 1); g.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 12);
       g.fillStyle(edge, 1); g.fillTriangle(-7, ph / 2, 7, ph / 2, 0, ph / 2 + 8);
+      if (v.T.shield && v.queue.length) {
+        // a shield badge on the left: this word only breaks the shield, then the guard's own word shows
+        const sx = -pw / 2 - 4, sy = 0;
+        const pts = [{ x: sx - 13, y: sy - 15 }, { x: sx + 13, y: sy - 15 }, { x: sx + 13, y: sy + 1 }, { x: sx, y: sy + 17 }, { x: sx - 13, y: sy + 1 }];
+        g.fillStyle(0xcfd8dc, 1); g.fillPoints(pts, true);
+        g.lineStyle(3, 0x5b6770, 1); g.strokePoints(pts, true, true);
+        g.fillStyle(0x8a5a2b, 1); g.fillRect(sx - 3, sy - 11, 6, 22); g.fillRect(sx - 9, sy - 5, 18, 6);
+      }
+      v.labelW = pw + 30;
       if (v.tBoss) {
-        const left = v.queue.length + 1;
-        v.tBoss.setText(`COUNT MOONFANG  ·  ${left} word${left === 1 ? '' : 's'} left`);
+        const left = v.queue.length + 1, unit = v.unit || 'word';
+        v.tBoss.setText(`${v.T.name.toUpperCase()}  ·  ${left} ${unit}${left === 1 ? '' : 's'} left`);
+        v.labelW = Math.max(v.labelW, v.tBoss.width + 20);
       }
     }
     removeVamp(v) {
@@ -1518,18 +1751,19 @@
     adjustPace(delta) { this.pace = Phaser.Math.Clamp(this.pace + delta, 0.7, 1.8); }
 
     shoot(v) {
-      const finishing = !v.boss || v.queue.length === 0;
+      const finishing = v.queue.length === 0;
       // A doomed enemy can't be targeted or bite any more, but keeps walking until the bolt lands.
       if (finishing) { v.dead = true; v.doomed = true; this.kills++; }
-      if (!v.boss) {
+      if (!v.boss && !v.minion) {
         const far = (v.x - ATTACK_X) / (SPAWN_X - ATTACK_X);
         this.adjustPace(far > 0.6 ? 0.03 : far > 0.4 ? 0.012 : far < 0.2 ? -0.04 : 0);
       }
-      const gain = this.practice ? 0 : Math.round((10 * v.word.length * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
+      // The Mutant is a penalty, so it gives no points or coins: the reward is getting rid of it.
+      const gain = this.practice || v.T.mutant ? 0 : Math.round((10 * v.word.length * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
       this.score += gain;
       Sfx.shoot();
       this.hunter.play(this.lookId + '-shoot');
-      if (finishing) this.addCoins(v.word.length + (v.boss ? 30 : 0));
+      if (finishing && !v.T.mutant) this.addCoins(v.word.length + (v.boss ? 30 : 0));
       const sx = this.boltX, sy = this.boltY, boltId = this.profile.bolt;
       const bkey = this.textures.exists('bolt-' + boltId) ? 'bolt-' + boltId : 'bolt';
       const spin = boltId === 'garlic';
@@ -1569,23 +1803,57 @@
       v.word = v.display = v.pendingWord; v.pendingWord = null; v.typed = 0;
       this.redrawLabel(v);
     }
+    // A hit that doesn't finish the enemy yet: a boss word, a Mutant sentence or a guard's shield.
     bossHit(v, gain) {
       if (v.removed) return;
       this.nextBossWord(v);
       Sfx.poof();
-      const y = this.hitY(v);
+      const y = this.hitY(v), T = v.T;
       this.burst(v.x, y, 10, 0.7);
       this.scorePop(v.x, y, gain);
+      if (T.shield) {
+        this.floatText(v.x, y - 60, 'Shield broken!', '#cfd8dc', 20);
+        v.x = Math.min(SPAWN_X - 60, v.x + 30);
+        return;
+      }
       v.spr.setTintFill(0xffffff);
-      this.time.delayedCall(90, () => v.spr.active && v.spr.clearTint());
-      v.x = Math.min(SPAWN_X - 60, v.x + 50);   // a small knock back; he walks faster to make up for it
+      this.time.delayedCall(90, () => v.spr.active && (T.tint ? v.spr.setTint(T.tint) : v.spr.clearTint()));
+      const knock = T.trick === 'charge' ? 110 : T.mutant ? 90 : 50;
+      v.x = Math.min(SPAWN_X - 60, v.x + knock);   // a small knock back; he walks faster to make up for it
+      if (T.trick === 'bats' || T.trick === 'minions') this.bossCast(v, 700);
+      if (T.trick === 'blink') this.blink(v);
+    }
+    // The Ghost Knight vanishes and pops up in another lane, a bit further away.
+    blink(v) {
+      this.burst(v.x, this.hitY(v), 14, 0.9);
+      const lanes = [0, 1, 2].filter(l => l !== v.lane);
+      v.lane = Phaser.Utils.Array.GetRandom(lanes); v.y = LANES[v.lane];
+      v.x = Phaser.Math.Clamp(v.x + Phaser.Math.Between(60, 240), ATTACK_X + 320, W - 170);
+      v.spr.setDepth(v.y); v.shadow.setDepth(v.y - 1); v.label.setDepth(1500 + v.y);
+      v.spr.setAlpha(0);
+      this.tweens.add({ targets: v.spr, alpha: v.T.alpha || 1, duration: 450 });
+      v.holdUntil = this.time.now + 500;
     }
     vanquish(v, gain) {
       Sfx.poof();
       const y = this.hitY(v);
       this.burst(v.x, y, v.boss ? 40 : 18, v.boss ? 1.6 : 1);
       this.scorePop(v.x, y, gain);
-      if (v.boss) { if (!this.practice) this.profile.ach.bossKills++; this.checkUnlocks(); this.banner('Moonfang flees!'); if (!Music.sting('wave-cleared')) Sfx.fanfare(); Music.want(this.battleMusic || 'battle-loop'); }
+      if (v.boss) {
+        if (v.T.mutant) this.mutants++;
+        else if (!this.practice) this.profile.ach.bossKills++;
+        this.checkUnlocks(); this.banner(v.T.flees || 'Boss beaten!');
+        if (!Music.sting('wave-cleared')) Sfx.fanfare();
+        Music.want(this.battleMusic || 'battle-loop');
+      }
+      if (v.T.split) {
+        // the big bat bursts into two little bats, each with a letter
+        [-1, 1].forEach((d, i) => {
+          const b = this.spawnVamp('bat', this.pickWord(true), null, { extra: true, x: v.x + 40 + i * 60, lane: Phaser.Math.Clamp(v.lane + d, 0, 2) });
+          this.burst(b.x, this.hitY(b), 6, 0.5);
+        });
+        this.floatText(v.x, y - 70, 'It split!', '#c9a3ff', 22);
+      }
       this.batAway(v, 1);
     }
     batAway(v, dir) {
@@ -1606,14 +1874,17 @@
       this.cameras.main.shake(v.boss ? 260 : 160, v.boss ? 0.01 : 0.006);
       this.hunter.play(this.lookId + '-hurt');
       this.hunter.setTintFill(0xff6b6b);
-      this.time.delayedCall(120, () => this.hunter.clearTint());
+      this.time.delayedCall(120, () => { this.hunter.clearTint(); if (this.jamLeft > 0) this.hunter.setTint(0x8f8aa6); });
       const ouch = this.txt(HUNTER_X, HUNTER_Y - 200, v.boss ? 'Ouch! -2' : 'Ouch!', { fontSize: '26px', fontStyle: '700', color: '#ff7b7b', stroke: '#2a0d16', strokeThickness: 5 })
         .setOrigin(0.5).setDepth(2400);
       this.tweens.add({ targets: ouch, y: HUNTER_Y - 240, alpha: 0, duration: 800, onComplete: () => ouch.destroy() });
       if (v.boss) {
-        // The Count vanishes in smoke and reappears further back, still carrying his word.
+        // The boss vanishes in smoke and reappears further back, still carrying its word.
+        // The Mutant keeps the letters already typed: its sentences are long.
         this.burst(v.x, this.hitY(v), 20, 1.2);
-        v.x = Math.min(SPAWN_X - 60, v.x + 560); this.nextBossWord(v); v.typed = 0; this.redrawLabel(v);
+        v.x = Math.min(SPAWN_X - 60, v.x + 560); this.nextBossWord(v);
+        if (!v.T.mutant) v.typed = 0;
+        this.redrawLabel(v);
         this.bossCast(v);
       } else {
         v.dead = true;
@@ -1622,12 +1893,29 @@
       }
       if (this.hearts <= 0) this.gameOver();
     }
+    // How fast an enemy moves right now: ghosts drift in bursts, Grizzlefang howls and charges.
+    speedNow(v, time) {
+      const T = v.T;
+      if (T.ghost) return 0.3 + 1.3 * Math.max(0, Math.sin(v.walk * 0.35));
+      if (T.trick === 'charge') {
+        if (!v.nextCharge) v.nextCharge = time + 4500;
+        if (time >= v.nextCharge && time >= v.holdUntil) {
+          v.nextCharge = time + Phaser.Math.Between(5500, 7000);
+          v.chargeFrom = time + 800; v.chargeUntil = time + 2000;
+          this.bossCast(v, 800); Sfx.growl();
+          this.floatText(v.x, this.hitY(v) - 120, 'AWOOO!', '#ffcf5a', 24);
+        }
+        if (time >= v.chargeFrom && time < v.chargeUntil) return 2.4;
+      }
+      return 1;
+    }
 
     update(time, delta) {
       if (this.state !== 'playing') return;
       const step = Math.min(delta, 100), dt = step / 1000;
       this.activeMs += step;
       this.addPlayTime(step);
+      this.updateJam(step);
       this.spawnClock -= delta;
       if (this.spawned < this.cfg.count && this.spawnClock <= 0) {
         this.spawnVamp();
@@ -1637,21 +1925,26 @@
         this.bossSpawned = true;
         this.spawnBoss();
       }
+      // Too many wrong keys this wave: the Mega Mutant comes once everything else is gone.
+      if (this.mutantDue && !this.mutantSpawned && this.spawned >= this.cfg.count && (!this.cfg.boss || this.bossSpawned) && this.vamps.length === 0 && !this.clearing) {
+        this.spawnMutant();
+      }
       for (const v of this.vamps) {
         if (v.removed || (v.dead && !v.doomed)) continue;
-        if (time >= v.holdUntil) v.x -= v.speed * dt;
+        if (time >= v.holdUntil) v.x -= v.speed * dt * this.speedNow(v, time);
         if (!v.seenAt && v.x < W - 30) v.seenAt = time;
         v.walk += dt * 9;
         const sy = v.T.flying ? v.y - 95 + Math.sin(v.walk * 0.7) * 14 : v.y;
         v.spr.setPosition(v.x, sy);
         v.shadow.setPosition(v.x, v.y);
         const shake = time < v.shakeUntil ? Math.sin(time * 0.09) * 6 : 0;
-        v.label.setPosition(v.x + shake, v.y - this.labelUp(v));
+        const half = (v.labelW || 80) / 2;
+        v.label.setPosition(Phaser.Math.Clamp(v.x, half + 6, W - half - 6) + shake, v.y - this.labelUp(v));   // long labels stay on screen
         if (!v.dead && v.x <= this.attackX(v)) this.vampAttack(v);
         if (this.state !== 'playing') break;
       }
       this.vamps = this.vamps.filter(v => !v.removed);
-      if (this.state === 'playing' && this.spawned >= this.cfg.count && (!this.cfg.boss || this.bossSpawned) && this.vamps.length === 0 && !this.clearing) {
+      if (this.state === 'playing' && this.spawned >= this.cfg.count && (!this.cfg.boss || this.bossSpawned) && (!this.mutantDue || this.mutantSpawned) && this.vamps.length === 0 && !this.clearing) {
         this.clearing = true;
         this.time.delayedCall(650, () => { this.clearing = false; this.waveCleared(); });
       }
