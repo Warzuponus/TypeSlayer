@@ -15,5 +15,15 @@
   "pirate": "8a403dd3-472a-4f0e-88b0-ef8a2cd7bf85",
   "sunfire": "4ea2672c-fe3a-4c43-9830-4bc8cf4464de",
   "nightbat": "ad281bd4-b6eb-46ea-8238-b1e506620f5c"
+ },
+ "foes": {
+  "wolf": "9dd7ee36-74a6-4e14-b645-eb770b8874fb",
+  "mummy": "309d6d52-ae0d-4747-929b-212b9fe677dc",
+  "shield": "05f786d3-7e32-49f1-bd1a-6fc98c18c4f1",
+  "batqueen": "68f0dc82-cae1-4e4a-8f8c-2a21dbb73841",
+  "werewolf": "acf5379d-919c-4156-9f3d-a00c7e795ca7",
+  "pharaoh": "0b3e8b22-4595-4549-b040-c882575240f3",
+  "ghostknight": "f0d072ab-d101-4ddd-abc4-2939ff77f64e",
+  "mutant": "14c235d2-1e3c-4a3a-a9ac-662b11123c61"
  }
 }

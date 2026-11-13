@@ -27,7 +27,17 @@ GitHub Pages works as is: serve the repository root from the default branch.
 - **Capitals toggle.** Shift is required and coins pay 1.5x.
 - **Profiles** for each kid, saved in the browser on that device.
 - **Daily 20-minute hunt** with a reward.
-- **Count Moonfang**, a boss with a queue of words.
+- **Lots of enemies.** Fledglings, armored vampires, ghouls and bats, plus wolf pups (fast), little mummies (slow), see-through ghosts that drift in bursts, shield guards (type the shield word, then theirs) and giant bats that split into two letter bats.
+- **A boss for each setting**, each with a queue of words and its own trick:
+  - Count Moonfang (graveyard, garden, rooftops) pauses to cast and gets knocked back.
+  - Queen Vespera the Bat Queen (cave) calls in bats carrying single letters.
+  - Grizzlefang the werewolf (forest) howls and charges every few seconds.
+  - Pharaoh Mumbles (crypt) has extra words and calls in little mummies.
+  - The Ghost Knight (courtyard) vanishes and pops up in another lane.
+- **Wrong keys count.** Each wrong key costs 5 points, and the HUD shows two meters:
+  - 4 wrong keys in a row jam the crossbow for 3 seconds. Keys do nothing until it's fixed.
+  - 15 wrong keys in one wave bring the **Mega Mutant** at the end of the wave. It needs 2 whole sentences (or 3 phrases made only of that wave's keys) and gives no points or coins.
+  - Practice mode never jams and never brings the Mutant. It shows a reminder instead.
 - **Shop** with 4 hunters, 6 outfits and 7 bolts, bought with coins earned in play.
   - Some items unlock through achievements.
   - The ultimate Sunfire Champion outfit is for beating every mode with Capitals on.
@@ -39,6 +49,7 @@ GitHub Pages works as is: serve the repository root from the default branch.
 | --- | --- |
 | `index.html` | The whole game (Phaser 3.80.1 from cdnjs) |
 | `assets.js` | Enemy, boss, original hunter and graveyard sprite sheets, embedded as data URIs |
+| `enemies.js` | The newer enemies and bosses (wolf pup, mummy, shield guard, ghost, the four setting bosses and the Mega Mutant) |
 | `skins.js` | Hunter and outfit sheets, bolt images and their crossbow and feet offsets |
 | `scenes.js` | The six newer settings and their ground colors |
 | `music/` | The game's music (Suno), 128 kbps MP3, loops trimmed on the beat. `tracks.json` has the exact lengths |
