@@ -14,7 +14,14 @@
    - New enemies and a boss for each setting, each with its own trick.
    - Wrong keys cost points, jam the crossbow when they come in a row, and bring the Mega Mutant when there are too many in a wave.
 
+7. **Math Hunt, phase 1.** Times tables on the enemies, typed answers that fire on a match, a fact engine with five levels and spaced review, a scouting round, Smart Hunt, three places with their bosses, new-fact cards and a daily math goal.
+
 ## Next
+
+### Math Hunt
+- **Phase 2: a grown-ups page.** A grid of every fact colored by level, the slowest facts with tips, answer time per table over the last 4 weeks, a practice log, the typing key heat map, settings and a PIN. The data is already being saved.
+- **Phase 3: all the times tables.** Stages 4 to 9 (×3, ×9, ×6, ×7, ×8, then the castle), a map screen, mastery stamps, math jobs for every enemy, hint pictures in practice mode, and the Mega Mutant carrying missed facts. New art and music: two bosses, two settings, the map and four Suno tracks.
+- **Phase 4: beyond the tables.** Division by fact family, adding and subtracting, the 11s and 12s, and math rewards.
 
 ### Ship and test
 - Publish on GitHub Pages.
@@ -32,6 +39,5 @@
 - Possibly a "story" sentence pack written for 8 to 11 year olds, and a pack of fun facts.
 
 ### Other ideas
-- A progress page for parents with key accuracy heat maps and minutes practiced per day.
 - Optional saving across devices.
 - More hunters and outfits, plus seasonal ones.
