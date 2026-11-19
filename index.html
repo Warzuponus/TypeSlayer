@@ -43,7 +43,7 @@
   const ATTACK_X = 232;                    // an enemy that reaches here bites
   const SPAWN_X = W + 60;
   const MAX_HEARTS = 5;
-  const SESSION_MS = 20 * 60 * 1000;       // one daily hunt = 20 minutes of play
+  const PART_MS = 10 * 60 * 1000;          // one daily hunt = 10 minutes of typing and 10 minutes of Math Hunt
   const FONT = 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
   const TITLE_FONT = 'Creepster, Impact, fantasy';
 
@@ -335,7 +335,12 @@
     while ((p.days[todayKey(d)] || {}).done) { n++; d.setDate(d.getDate() - 1); }
     return n;
   }
-  function todayMs(p) { return (p.days[todayKey()] || {}).ms || 0; }
+  function todayMs(p, math) { const d = p.days[todayKey()] || {}; return (math ? d.mathMs : d.ms) || 0; }
+  // "Typing 4:00 · Math 2:10 of 10:00 each", with a check mark on a finished half
+  function dayParts(p, sep = '   ·   ') {
+    const part = (name, ms) => ms >= PART_MS ? `${name} done ✓` : `${name} ${fmtMin(ms)}`;
+    return `${part('Typing', todayMs(p))}${sep}${part('Math', todayMs(p, true))}`;
+  }
   function fmtMin(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
 
   // ---------- Sound (tiny synth, no files needed) ----------
@@ -764,11 +769,17 @@
     }
     drawSession() {
       const p = this.profile; if (!p) return;
-      const ms = todayMs(p), done = (p.days[todayKey()] || {}).done;
-      this.sessionText.setText(done ? `Daily hunt done!  ${fmtMin(ms)} today` : `Daily hunt  ${fmtMin(ms)} / 20:00`);
+      const math = this.modeKey === 'math', ms = todayMs(p, math), done = (p.days[todayKey()] || {}).done;
+      const name = math ? 'Math time' : 'Typing time';
+      this.sessionText.setText(done ? 'Daily hunt done!' : ms >= PART_MS ? `${name} done! ✓` : `${name}  ${fmtMin(ms)} / 10:00`);
+      // two short bars: typing (gold) and math (blue), each full at 10 minutes
       const g = this.sessionBar; g.clear();
-      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(20, 80, 200, 8, 4);
-      g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(20, 80, Math.max(8, 200 * Math.min(1, ms / SESSION_MS)), 8, 4);
+      [todayMs(p), todayMs(p, true)].forEach((t, i) => {
+        const x = 20 + i * 102;
+        g.fillStyle(0x2c2148, 1); g.fillRoundedRect(x, 80, 98, 8, 4);
+        g.fillStyle(t >= PART_MS ? 0x7be08f : i ? 0x5ec8ff : 0xffcf5a, (i === 1) === math ? 1 : 0.55);
+        g.fillRoundedRect(x, 80, Math.max(8, 98 * Math.min(1, t / PART_MS)), 8, 4);
+      });
     }
 
     // ---------- On-screen keyboard ----------
@@ -927,11 +938,16 @@
     }
     hidePanel() { if (this.panel) { this.panel.destroy(); this.panel = null; } }
 
-    banner(s, y = 200) {
+    banner(s, y = 200, sub = '') {
       const t = this.txt(640, y, s, { fontFamily: TITLE_FONT, fontSize: '84px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 8 })
         .setOrigin(0.5).setDepth(2900).setScale(0.6).setAlpha(0);
       this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 300, ease: 'Back.out',
-        onComplete: () => this.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: 900, duration: 400, onComplete: () => t.destroy() }) });
+        onComplete: () => this.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: sub ? 1800 : 900, duration: 400, onComplete: () => t.destroy() }) });
+      if (sub) {
+        const u = this.txt(640, y + 62, sub, { fontSize: '30px', fontStyle: '700', color: '#ffffff', stroke: '#140c28', strokeThickness: 6 }).setOrigin(0.5).setDepth(2900).setAlpha(0);
+        this.tweens.add({ targets: u, alpha: 1, duration: 300,
+          onComplete: () => this.tweens.add({ targets: u, alpha: 0, y: y + 32, delay: 1800, duration: 400, onComplete: () => u.destroy() }) });
+      }
     }
 
     // ---------- Menus: profiles, naming, modes ----------
@@ -988,7 +1004,7 @@
         this.menu.push(spr,
           this.txt(x, y - 128, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0.5).setDepth(2970),
           this.txt(x, y + 44, p.name, { fontSize: '28px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5).setDepth(2970),
-          this.txt(x, y + 80, done ? 'Daily hunt done today' : `Today ${fmtMin(todayMs(p))} of 20:00`, { fontSize: '16px', fontStyle: '500', color: done ? '#7be08f' : '#e4d9fb' }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 80, done ? 'Daily hunt done today' : dayParts(p, ' · '), { fontSize: '16px', fontStyle: '500', color: done ? '#7be08f' : '#e4d9fb' }).setOrigin(0.5).setDepth(2970),
           this.txt(x, y + 104, streak ? `${streak}-day streak` : `${p.sessions} daily hunts done`, { fontSize: '16px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0.5).setDepth(2970));
       });
       if (ps.length < 4) {
@@ -1041,12 +1057,12 @@
       this.logo(pr ? `Practice mode, ${p.name}` : `Choose your hunt, ${p.name}`);
       this.refreshKeyboard(pr ? '12345cp' : '12345pcs', '');
       this.drawSpace(false);
-      const done = (p.days[todayKey()] || {}).done, ms = todayMs(p), streak = dayStreak(p);
+      const done = (p.days[todayKey()] || {}).done, streak = dayStreak(p);
       this.tipText.setText(pr
         ? 'Practice shows the keyboard and which finger to use. Nothing here counts: no points, coins or daily hunt time.'
         : done
-          ? `You finished today's 20-minute hunt. Extra practice still makes you faster!`
-          : `Today's hunt: ${fmtMin(ms)} of 20:00. Any mode counts toward your daily hunt.`);
+          ? `You finished today's hunt. Extra practice still makes you faster!`
+          : `Today's hunt is 10 minutes of typing and 10 minutes of Math Hunt. ${dayParts(p)}.`);
       MODE_ORDER.forEach((key, i) => {
         const M = MODES[key], prog = p.modes[key] || {};
         const y = 190 + i * 60, x = 520;
@@ -1097,12 +1113,15 @@
         // daily hunt box
         this.card(bx, by, 330, 168, () => {});
         const g = this.add.graphics().setDepth(2970);
-        g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 130, by - 24, 260, 12, 6);
-        g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(bx - 130, by - 24, Math.max(12, 260 * Math.min(1, ms / SESSION_MS)), 12, 6);
+        [todayMs(p), todayMs(p, true)].forEach((t, i) => {
+          const x = bx - 130 + i * 134;
+          g.fillStyle(0x2c2148, 1); g.fillRoundedRect(x, by - 24, 126, 12, 6);
+          g.fillStyle(t >= PART_MS ? 0x7be08f : i ? 0x5ec8ff : 0xffcf5a, 1); g.fillRoundedRect(x, by - 24, Math.max(12, 126 * Math.min(1, t / PART_MS)), 12, 6);
+        });
         const weak = this.weakKeys(3);
         this.menu.push(g,
           this.txt(bx, by - 66, 'DAILY HUNT', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2' }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
-          this.txt(bx, by - 42, done ? 'Done for today!' : `${fmtMin(ms)} of 20:00`, { fontSize: '26px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
+          this.txt(bx, by - 42, done ? 'Done for today!' : dayParts(p, ' · '), { fontSize: '18px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
           this.txt(bx, by + 8, `Day streak: ${streak}   ·   Hunts done: ${p.sessions}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
           this.txt(bx, by + 50, weak.length ? `Keys to practice:\n${weak.map(k => k.toUpperCase()).join('   ')}` : 'Play a round and I will\nfind your tricky keys.',
             { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970));
@@ -1303,7 +1322,7 @@
       this.menu.push(g,
         this.txt(bx, by - 84, 'DAILY MATH GOAL', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2', padding: { x: 4 } }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
         this.txt(bx, by - 56, done ? `Done! ${today.right} facts today` : `${today.right} of ${MX.DAILY_GOAL} facts today`, { fontSize: '24px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
-        this.txt(bx, by - 2, `Under 3 seconds today: ${today.fast}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by - 2, `Under 3 seconds: ${today.fast}   ·   Math time: ${todayMs(p, true) >= PART_MS ? 'done ✓' : fmtMin(todayMs(p, true)) + ' / 10:00'}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
         this.txt(bx, by + 52, weak.length ? `Facts to practice:\n${weak.map(MX.label).join('    ')}` : m.placed ? 'Play a hunt and I will\nfind your tricky facts.' : 'Every hunter starts with\na scouting round.',
           { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970));
       // what the colors mean
@@ -1837,8 +1856,15 @@
       if (this.practice) return;   // practice doesn't count toward the daily hunt
       const p = this.profile, k = todayKey();
       const day = p.days[k] || (p.days[k] = { ms: 0, done: false });
-      day.ms += ms;
-      if (!day.done && day.ms >= SESSION_MS) {
+      const math = this.modeKey === 'math', f = math ? 'mathMs' : 'ms', before = day[f] || 0;
+      day[f] = before + ms;
+      const other = (math ? day.ms : day.mathMs) || 0;
+      if (!day.done && before < PART_MS && day[f] >= PART_MS && other < PART_MS) {
+        Sfx.fanfare();
+        this.banner(math ? 'Math time done!' : 'Typing time done!', 150, math ? 'Now 10 minutes of typing finishes today\'s hunt.' : 'Now 10 minutes of Math Hunt finishes today\'s hunt.');
+        this.saveProfile();
+      }
+      if (!day.done && (day.ms || 0) >= PART_MS && (day.mathMs || 0) >= PART_MS) {
         day.done = true; p.sessions = (p.sessions || 0) + 1;
         this.addCoins(100);
         this.sessionCheered = 'pending';
@@ -1902,7 +1928,7 @@
                 `Waves cleared: ${this.wave - this.startWave}    Vampires stopped: ${this.kills}\n` +
                 `Accuracy: ${this.accuracy()}%    Speed: ${this.wpm()} WPM    Best streak: ${this.bestStreak}\n\n` +
                 `Wrong keys: ${this.wrong} (-${this.pointsLost.toLocaleString()} points)${this.mutants ? `   ·   Mutants beaten: ${this.mutants}` : ''}\n` +
-                trickyLine + `\nCoins earned: ${this.coinsEarned}   ·   Daily hunt: ${fmtMin(todayMs(this.profile))} of 20:00`,
+                trickyLine + `\nCoins earned: ${this.coinsEarned}   ·   Today: ${dayParts(this.profile)}`,
           footer: 'Press SPACE to continue',
         });
         this.time.delayedCall(900, () => { this.overReady = true; });

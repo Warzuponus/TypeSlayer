@@ -26,7 +26,7 @@ GitHub Pages works as is: serve the repository root from the default branch.
 - **Practice mode** (press P on the hunt menu) shows the keyboard with finger colors and the next key lit up. It is always blue and earns nothing: no points, coins, unlocks, daily hunt time or best scores, and it doesn't change the weak-key stats.
 - **Capitals toggle.** Shift is required and coins pay 1.5x.
 - **Profiles** for each kid, saved in the browser on that device.
-- **Daily 20-minute hunt** with a reward.
+- **Daily hunt** with a reward: 10 minutes of typing and 10 minutes of Math Hunt.
 - **Lots of enemies.** Fledglings, armored vampires, ghouls and bats, plus wolf pups (fast), little mummies (slow), see-through ghosts that drift in bursts, shield guards (type the shield word, then theirs) and giant bats that split into two letter bats.
 - **A boss for each setting**, each with a queue of words and its own trick:
   - Count Moonfang (graveyard, garden, rooftops) pauses to cast and gets knocked back.
@@ -45,7 +45,7 @@ GitHub Pages works as is: serve the repository root from the default branch.
 
 ## Math Hunt
 
-Press **M** on the hunt menu. Each enemy carries a times-table problem like `7 × 8 = ?`. Typing the answer fires the crossbow as soon as the number matches, with no Enter needed. The crossbow always aims at the enemy closest to the hunter. Math Hunt uses the same hunters, coins, shop and daily 20-minute hunt.
+Press **M** on the hunt menu. Each enemy carries a times-table problem like `7 × 8 = ?`. Typing the answer fires the crossbow as soon as the number matches, with no Enter needed. The crossbow always aims at the enemy closest to the hunter. Math Hunt uses the same hunters, coins and shop. It has its own 10-minute timer: a full daily hunt is 10 minutes of typing plus 10 minutes of Math Hunt.
 
 - **Every fact is tracked.** A fact and its turnaround (7 × 8 and 8 × 7) count as one. Each fact sits on one of five levels:
 
