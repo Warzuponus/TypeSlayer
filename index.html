@@ -19,6 +19,63 @@
     font-family: Fredoka, "Trebuchet MS", system-ui, sans-serif;
   }
   #game { width: 100%; height: 100%; }
+  /* The grown-ups page: plain HTML over the game. */
+  #grownups { position: fixed; inset: 0; z-index: 10; overflow-y: auto; background: rgba(13, 10, 26, 0.97); color: var(--ink); font-size: 15px; }
+  #grownups[hidden] { display: none; }
+  #grownups button { font: inherit; color: inherit; cursor: pointer; }
+  .gu-pin { max-width: 360px; margin: 10vh auto; padding: 0 16px; text-align: center; }
+  .gu-pin h2 { font-size: 22px; color: var(--gold); font-weight: 600; }
+  .gu-dots { display: flex; gap: 14px; justify-content: center; margin: 18px 0 6px; }
+  .gu-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #7a55c8; display: grid; place-items: center; font-weight: 700; }
+  .gu-dot.on { background: #7a55c8; }
+  .gu-msg { min-height: 22px; color: #ff9b9b; margin: 4px 0; }
+  .gu-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 10px; justify-content: center; }
+  .gu-key { height: 56px; border-radius: 14px; border: 2px solid #3d2b63; background: #140c28; font-size: 22px; font-weight: 600; }
+  .gu-key:hover, .gu-btn:hover, .gu-tab:hover { border-color: var(--gold); }
+  .gu-small { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .gu-link { background: none; border: 0; color: #cbbcec; text-decoration: underline; }
+  .gu-page { max-width: 1140px; margin: 0 auto; padding: 16px; }
+  .gu-page header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .gu-page h1 { font-size: 28px; color: var(--gold); margin: 0 12px 0 0; font-weight: 700; }
+  .gu-page nav { display: flex; gap: 6px; flex-wrap: wrap; }
+  .gu-grow { flex: 1; }
+  .gu-tab, .gu-btn { border: 2px solid #3d2b63; background: #140c28; border-radius: 12px; padding: 6px 14px; font-weight: 600; }
+  .gu-tab.on { border-color: #7be08f; color: #7be08f; }
+  .gu-copied { color: #7be08f; margin: 8px 0 0; }
+  .gu-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+  .gu-tile { background: #1b1233; border: 1px solid #3d2b63; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .gu-tile b { font-size: 26px; color: #fff; }
+  .gu-tile span { color: #cbbcec; font-size: 13px; }
+  .gu-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .gu-card { background: #1b1233; border: 1px solid #3d2b63; border-radius: 16px; padding: 14px 16px; min-width: 0; }
+  .gu-card h2 { font-size: 18px; margin: 0 0 10px; font-weight: 600; color: #fff; }
+  .gu-h2b { margin-top: 18px !important; }
+  .gu-note { color: #9a8bc2; font-size: 13px; margin: 8px 0; }
+  .gu-grid { display: grid; grid-template-columns: 22px repeat(10, minmax(0, 1fr)); gap: 3px; max-width: 440px; }
+  .gu-hd { color: #9a8bc2; font-size: 12px; display: grid; place-items: center; }
+  .gu-cell { aspect-ratio: 1; border: 2px solid transparent; border-radius: 6px; font-size: 12px; font-weight: 600; color: #140c28; padding: 0; }
+  .gu-cell.sel { border-color: #fff; }
+  .gu-detail p { margin: 8px 0 0; line-height: 1.5; }
+  .gu-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13px; color: #cbbcec; }
+  .gu-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .gu-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .gu-tip { color: var(--gold); font-size: 14px; }
+  .gu-map { list-style: none; padding: 0; margin: 0; }
+  .gu-map li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid #2c2148; }
+  .gu-map li.off { color: #7d6fa3; }
+  .gu-map small { color: #9a8bc2; }
+  .gu-map .gold { color: var(--gold); font-style: normal; font-weight: 600; }
+  .gu-speed { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+  .gu-kb { display: flex; flex-direction: column; gap: 4px; }
+  .gu-kbrow { display: flex; gap: 4px; }
+  .gu-k { width: 30px; height: 30px; border-radius: 6px; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #140c28; }
+  .gu-k.good, .gu-legend .good { background: #7be08f; }
+  .gu-k.mid, .gu-legend .mid { background: #ffb547; }
+  .gu-k.bad, .gu-legend .bad { background: #ff6b6b; }
+  .gu-k.none, .gu-legend .none { background: #3d2b63; color: #cbbcec; }
+  .gu-card label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0; }
+  .gu-card select { font: inherit; background: #140c28; color: var(--ink); border: 2px solid #3d2b63; border-radius: 10px; padding: 4px 8px; }
+  .gu-card .gu-check { justify-content: flex-start; }
   #loading {
     position: fixed; inset: 0; display: grid; place-items: center;
     font-size: 20px; color: var(--gold);
@@ -26,6 +83,7 @@
 </style>
 
 <div id="game"></div>
+<div id="grownups" hidden></div>
 <div id="loading">Sharpening crossbow bolts…</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
@@ -33,6 +91,7 @@
 <script src="skins.js"></script>
 <script src="scenes.js"></script>
 <script src="enemies.js"></script>
+<script src="mathart.js"></script>
 <script src="math.js"></script>
 <script>
 (() => {
@@ -74,6 +133,12 @@
     ghostknight: foe('ghostknight', 'walk', { speed: 0.8, fps: 8, boss: true, name: 'The Ghost Knight', cast: 'ghostknight-cast', trick: 'blink', alpha: 0.85, flees: 'The Ghost Knight fades away!' }),
     // Brought out by too many wrong keys in one wave: slow, huge, and beaten with whole sentences.
     mutant:    foe('mutant', 'walk', { speed: 0.3, fps: 6, boss: true, mutant: true, scale: 2.3, name: 'Mega Mutant', cast: 'mutant-cast', trick: 'knock', flees: 'The Mutant melts away!' }),
+    // Math Hunt bosses (mathart.js): the Beetle Baron's shell bounces him back further, the Countess drops into another lane.
+    beetle:    foe('beetle', 'walk', { speed: 0.7, fps: 9, boss: true, name: 'Beetle Baron', cast: 'beetle-cast', trick: 'shell', flees: 'The Beetle Baron scuttles off!' }),
+    weaver:    foe('weaver', 'walk', { speed: 0.75, fps: 8, boss: true, name: 'Countess Weaver', cast: 'weaver-cast', trick: 'blink', flees: 'Countess Weaver climbs away!' }),
+    // The castle's final boss: Count Moonfang returns, bigger, glowing and tinted.
+    kingcount: { sheet: 'countWalk', anim: 'c-walk', ox: 96 / 176, oy: 150 / 176, h: 300, lu: 290, scale: 2.45, speed: 0.8, boss: true, name: 'Count Moonfang', cast: 'c-cast',
+                 trick: 'knock', tint: 0xffb3dc, aura: 0xff5ab0, flees: 'Moonfang is beaten for good!' },
   };
   Object.keys(TYPES).forEach(k => { if (!TYPES[k]) delete TYPES[k]; });
   const BOSS_FOR_SCENE = { cave: 'batqueen', forest: 'werewolf', crypt: 'pharaoh', courtyard: 'ghostknight' };
@@ -280,8 +345,13 @@
     learn:  { count: 16, speed: 36, gap: 4000, max: 4, name: 'Learning' },
     review: { count: 14, speed: 38, gap: 3800, max: 4, name: 'Review', boss: true },
     bonus:  { count: 14, speed: 40, gap: 3600, max: 5, name: 'Bonus' },
+    mixed:  { count: 12, speed: 38, gap: 3700, max: 4, name: 'Mixed Review' },
+    practice: { count: 12, speed: 24, gap: 4600, max: 3, name: 'Practice' },
   };
-  const BOSS_FACTS = 6;
+  const BOSS_FACTS = 6;        // facts a boss carries (10 for Count Moonfang in the castle)
+  const MATH_MUTANT = 8;       // 8 wrong answers in one wave bring the Mega Mutant, carrying the facts that were missed
+  const ICONS = window.VH_MATH_ICONS || {};
+  const ARRAY_ICONS = ['bat', 'pumpkin', 'garlic', 'coin'];   // lesson-card pictures, picked by table
 
   // ---------- Skipping the warm-up once it's mastered ----------
   // A mode's first waves teach its keys a pair at a time. Wave skipTo is the first one with every letter of
@@ -545,6 +615,256 @@
     tex(s, 'shiftglow', 74, 46, g => { g.lineStyle(4, 0xffffff); g.strokeRoundedRect(3, 3, 68, 40, 9); });
   }
 
+  // ---------- Grown-ups page ----------
+  // A plain web page over the game, opened from the hunter screen behind a 4-digit PIN. It answers three questions:
+  // which facts are known, is the hunter getting faster, and how much did they practice. Everything comes from the
+  // save on this device. Settings here are per hunter; the PIN is for the whole device.
+  const Grownups = {
+    el: null, scene: null, pid: null, sel: null, pinBuf: '', pinStep: null, pinFirst: '',
+    open(scene) {
+      this.scene = scene;
+      this.el = this.el || document.getElementById('grownups');
+      this.pid = Store.data.lastId || (Store.data.profiles[0] || {}).id;
+      this.el.hidden = false;
+      this.pinBuf = ''; this.pinFirst = '';
+      this.pinStep = Store.data.pin ? 'enter' : 'new';
+      this.drawPin('');
+      if (!this.keyFn) {
+        this.keyFn = e => {
+          if (this.el.hidden) return;
+          if (e.key === 'Escape') { e.preventDefault(); this.close(); return; }
+          if (this.pinStep && /^[0-9]$/.test(e.key)) { e.preventDefault(); this.pinKey(e.key); }
+          else if (this.pinStep && e.key === 'Backspace') { e.preventDefault(); this.pinKey('del'); }
+        };
+        window.addEventListener('keydown', this.keyFn);
+      }
+    },
+    close() {
+      this.el.hidden = true; this.el.innerHTML = ''; this.pinStep = null;
+      Store.save();
+      this.scene.showProfiles();
+    },
+    esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); },
+    // --- the PIN ---
+    drawPin(msg) {
+      const title = { new: 'Set a 4-digit PIN for the grown-ups page', again: 'Type the same PIN again', enter: 'Grown-ups only: type the PIN', reset: 'To set a new PIN, answer 14 × 16' }[this.pinStep];
+      const len = this.pinStep === 'reset' ? 3 : 4;
+      const dots = Array.from({ length: len }, (_, i) => `<span class="gu-dot${i < this.pinBuf.length ? ' on' : ''}">${this.pinStep === 'reset' && this.pinBuf[i] ? this.pinBuf[i] : ''}</span>`).join('');
+      const pad = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'del', 0, 'ok'].map(k => k === 'ok' ? '<span></span>'
+        : `<button class="gu-key" data-k="${k}">${k === 'del' ? '⌫' : k}</button>`).join('');
+      this.el.innerHTML = `<div class="gu-pin"><h2>${title}</h2><div class="gu-dots">${dots}</div><p class="gu-msg">${this.esc(msg || '')}</p>
+        <div class="gu-pad">${pad}</div>
+        <p class="gu-small">${this.pinStep === 'enter' ? '<button class="gu-link" data-act="forgot">Forgot the PIN?</button>' : ''}
+        <button class="gu-link" data-act="close">Back to the game (Esc)</button></p></div>`;
+      this.el.querySelectorAll('.gu-key').forEach(b => b.onclick = () => this.pinKey(b.dataset.k));
+      this.el.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+        if (b.dataset.act === 'close') this.close();
+        else { this.pinStep = 'reset'; this.pinBuf = ''; this.drawPin(''); }
+      });
+    },
+    pinKey(k) {
+      const len = this.pinStep === 'reset' ? 3 : 4;
+      if (k === 'del') this.pinBuf = this.pinBuf.slice(0, -1);
+      else if (this.pinBuf.length < len) this.pinBuf += k;
+      if (this.pinBuf.length < len) { this.drawPin(''); return; }
+      const v = this.pinBuf; this.pinBuf = '';
+      if (this.pinStep === 'new') { this.pinFirst = v; this.pinStep = 'again'; this.drawPin(''); }
+      else if (this.pinStep === 'again') {
+        if (v === this.pinFirst) { Store.data.pin = v; Store.save(); this.pinStep = null; this.render(); }
+        else { this.pinStep = 'new'; this.drawPin('Those two did not match. Try again.'); }
+      } else if (this.pinStep === 'reset') {
+        if (v === '224') { this.pinStep = 'new'; this.drawPin(''); } else this.drawPin('Not quite. Try again.');
+      } else if (v === Store.data.pin) { this.pinStep = null; this.render(); }
+      else this.drawPin('That is not the PIN.');
+    },
+    // --- the page ---
+    profile() { return Store.data.profiles.find(p => p.id === this.pid) || Store.data.profiles[0]; },
+    dateKeys(n) { return Array.from({ length: n }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return todayKey(d); }); },
+    render() {
+      const ps = Store.data.profiles;
+      if (!ps.length) { this.el.innerHTML = `<div class="gu-page"><header><h1>Grown-ups</h1><button class="gu-btn" data-act="close">Close</button></header><p>No hunters yet. Make one on the hunter screen first.</p></div>`; this.wire(); return; }
+      const p = ensureProfile(this.profile()); this.pid = p.id;
+      const m = MX.ensure(p);
+      MX.updateOpen(p); MX.updateMastery(p);
+      const lv = MX.ALL_FACTS.map(k => MX.level(p, k));
+      const known = lv.filter(l => l >= 2).length, fluent = lv.filter(l => l >= 3).length, mastered = lv.filter(l => l === 4).length;
+      const last14 = this.dateKeys(14), goals = last14.filter(k => (m.days[k] || {}).goal).length;
+      const tabs = ps.map(q => `<button class="gu-tab${q.id === p.id ? ' on' : ''}" data-pid="${q.id}">${this.esc(q.name)}</button>`).join('');
+      this.el.innerHTML = `<div class="gu-page">
+        <header><h1>Grown-ups</h1><nav>${tabs}</nav><span class="gu-grow"></span>
+          <button class="gu-btn" data-act="copy">Copy report</button><button class="gu-btn" data-act="close">Close (Esc)</button></header>
+        <p class="gu-copied" hidden>Report copied. Paste it into a message to the teacher.</p>
+        <section class="gu-tiles">
+          ${this.tile(`${known} of 55`, 'facts Known (right within 6 s)')}
+          ${this.tile(`${fluent} of 55`, 'facts Fluent (within 3 s)')}
+          ${this.tile(`${mastered} of 55`, 'facts Mastered (Fluent on 3 days)')}
+          ${this.tile(`${dayStreak(p)}`, 'day streak of full daily hunts')}
+          ${this.tile(`${goals} of 14`, 'days the math goal was hit, last 2 weeks')}
+        </section>
+        <div class="gu-cols">
+          <section class="gu-card"><h2>Which facts are known</h2>${this.grid(p)}<div class="gu-detail" id="gu-detail">${this.detail(p, this.sel)}</div></section>
+          <section class="gu-card"><h2>Facts to watch</h2>${this.watch(p)}<h2 class="gu-h2b">Map progress</h2>${this.mapList(p)}</section>
+        </div>
+        <div class="gu-cols">
+          <section class="gu-card"><h2>Getting faster</h2><p class="gu-note">Average answer time per table, by week, oldest on the left. Bars go up to 8 seconds; under the dashed 3-second line is Fluent. Hover a bar for its time.</p>${this.speed(p)}</section>
+          <section class="gu-card"><h2>Practice log, last 14 days</h2>${this.log(p)}</section>
+        </div>
+        <div class="gu-cols">
+          <section class="gu-card"><h2>Typing</h2>${this.typing(p)}</section>
+          <section class="gu-card"><h2>Settings for ${this.esc(p.name)}</h2>${this.settings(m)}</section>
+        </div>
+      </div>`;
+      this.wire();
+    },
+    wire() {
+      const $ = s => this.el.querySelectorAll(s);
+      $('[data-act="close"]').forEach(b => b.onclick = () => this.close());
+      $('[data-act="copy"]').forEach(b => b.onclick = () => this.copy());
+      $('[data-act="pin"]').forEach(b => b.onclick = () => { this.pinStep = 'new'; this.pinBuf = ''; this.drawPin(''); });
+      $('[data-pid]').forEach(b => b.onclick = () => { this.pid = b.dataset.pid; this.sel = null; this.render(); });
+      $('.gu-cell').forEach(c => c.onclick = () => { this.sel = c.dataset.k; this.el.querySelector('#gu-detail').innerHTML = this.detail(this.profile(), this.sel);
+        $('.gu-cell.sel').forEach(x => x.classList.remove('sel')); c.classList.add('sel'); });
+      $('[data-set]').forEach(inp => inp.onchange = () => {
+        const s = MX.ensure(this.profile()).settings, k = inp.dataset.set;
+        s[k] = inp.type === 'checkbox' ? inp.checked : Number(inp.value);
+        Store.save();
+      });
+    },
+    tile(big, small) { return `<div class="gu-tile"><b>${big}</b><span>${small}</span></div>`; },
+    hex(c) { return '#' + c.toString(16).padStart(6, '0'); },
+    grid(p) {
+      let h = '<div class="gu-grid" role="grid"><span></span>';
+      for (let c = 1; c <= 10; c++) h += `<span class="gu-hd">${c}</span>`;
+      for (let r = 1; r <= 10; r++) {
+        h += `<span class="gu-hd">${r}</span>`;
+        for (let c = 1; c <= 10; c++) {
+          const k = MX.key(r, c), l = MX.level(p, k), L = MX.LEVELS[l];
+          h += `<button class="gu-cell${this.sel === k ? ' sel' : ''}" data-k="${k}" style="background:${this.hex(L.color)}${l === 0 ? ';color:#e4d9fb' : ''}" title="${r} × ${c} = ${r * c}: ${L.name}">${r * c}</button>`;
+        }
+      }
+      h += '</div><div class="gu-legend">' + MX.LEVELS.map(L => `<span><i style="background:${this.hex(L.color)}"></i>${L.name}</span>`).join('') + '</div>';
+      return h + '<p class="gu-note">Each square is one fact; 7 × 8 and 8 × 7 are the same fact. Tap a square for details.</p>';
+    },
+    detail(p, k) {
+      if (!k) return '<p class="gu-note">Tap a square to see how that fact is going.</p>';
+      const f = MX.ensure(p).facts[k], [a, b] = MX.parse(k), today = MX.dayNum();
+      if (!f || (!f.hit && !f.miss)) return `<p><b>${a} × ${b} = ${a * b}</b> · ${MX.LEVELS[f ? f.lvl : 0].name}. Not answered yet. Strategy: ${MX.hint(k)}.</p>`;
+      const n = f.hit + f.miss, ago = today - f.last, due = f.due - today;
+      return `<p><b>${a} × ${b} = ${a * b}</b> · ${MX.LEVELS[f.lvl].name}<br>Right ${f.hit} of ${n} (${Math.round(f.hit / n * 100)}%) · average ${f.hit ? (f.ms / f.hit / 1000).toFixed(1) + ' s' : '–'} · ` +
+        `last seen ${ago <= 0 ? 'today' : ago === 1 ? 'yesterday' : ago + ' days ago'} · ${due <= 0 ? 'due for review now' : 'next review in ' + due + (due === 1 ? ' day' : ' days')}<br>Strategy: ${MX.hint(k)}</p>`;
+    },
+    watch(p) {
+      const F = MX.ensure(p).facts, list = MX.weakFacts(p, 5);
+      if (!list.length) return '<p class="gu-note">No tricky facts yet. Facts show up here after a few misses or slow answers.</p>';
+      return '<ul class="gu-list">' + list.map(k => {
+        const f = F[k], n = f.hit + f.miss, [a, b] = MX.parse(k);
+        return `<li><b>${b} × ${a} = ${a * b}</b>: missed ${f.miss} of ${n}${f.hit ? `, average ${(f.ms / f.hit / 1000).toFixed(1)} s` : ''}.<br><span class="gu-tip">Try: ${MX.hint(k)}</span></li>`;
+      }).join('') + '</ul>';
+    },
+    mapList(p) {
+      const m = MX.ensure(p);
+      return '<ul class="gu-map">' + MX.STAGES.map(s => {
+        const pg = MX.progress(p, s.id), open = s.id <= m.open;
+        const state = m.mastered[s.id] ? '<em class="gold">Mastered</em>' : open ? `${pg.known} of ${pg.total} known` : 'Locked';
+        return `<li class="${open ? '' : 'off'}"><span>${s.id}. ${s.name} <small>${s.label}</small></span><span>${state}${m.bosses[s.id] ? ' · boss beaten' : ''}</span></li>`;
+      }).join('') + '</ul>';
+    },
+    // Small multiples: one tiny bar chart per table, four weekly bars each, with the 3-second Fluent line.
+    speed(p) {
+      const days = MX.ensure(p).days, keys = this.dateKeys(28), max = 8000, W = 76, H = 60;
+      const any = keys.some(k => days[k] && days[k].t && Object.keys(days[k].t).length);
+      if (!any) return '<p class="gu-note">No answers in the last 4 weeks yet.</p>';
+      let out = '<div class="gu-speed">';
+      for (let t = 1; t <= 10; t++) {
+        const weeks = [3, 2, 1, 0].map(w => {
+          let sum = 0, n = 0;
+          keys.slice(w * 7, w * 7 + 7).forEach(k => { const s = days[k] && days[k].t && days[k].t[t]; if (s) { sum += s[0]; n += s[1]; } });
+          return n ? sum / n : null;
+        });
+        const y3 = H - H * MX.FAST_MS / max;
+        let svg = `<svg viewBox="0 0 ${W} ${H + 14}" width="${W}" height="${H + 14}" role="img" aria-label="Times ${t}">`;
+        weeks.forEach((ms, i) => {
+          const x = 4 + i * 18;
+          if (ms == null) { svg += `<rect x="${x}" y="${H - 2}" width="12" height="2" fill="#4a3a70"><title>${['3 weeks ago', '2 weeks ago', 'Last week', 'This week'][i]}: no answers</title></rect>`; return; }
+          const h = Math.max(3, H * Math.min(ms, max) / max);
+          svg += `<path d="M${x},${H} v${-(h - 4)} q0,-4 4,-4 h4 q4,0 4,4 v${h - 4} z" fill="#2f86c8"><title>${['3 weeks ago', '2 weeks ago', 'Last week', 'This week'][i]}: ${(ms / 1000).toFixed(1)} s</title></path>`;
+        });
+        svg += `<line x1="0" x2="${W}" y1="${y3}" y2="${y3}" stroke="#cbbcec" stroke-width="1" stroke-dasharray="3 3"/><line x1="0" x2="${W}" y1="${H}" y2="${H}" stroke="#4a3a70"/>`;
+        const last = weeks.filter(x => x != null).pop();
+        svg += `<text x="${W / 2}" y="${H + 12}" text-anchor="middle" fill="#cbbcec" font-size="10">×${t}${last ? ' · ' + (last / 1000).toFixed(1) + 's' : ''}</text></svg>`;
+        out += svg;
+      }
+      return out + '</div>';
+    },
+    // Minutes per day, typing and math stacked, with facts answered and the daily goal marked.
+    log(p) {
+      const keys = this.dateKeys(14).reverse(), md = MX.ensure(p).days, W = 440, H = 120, bw = 22, gap = (W - 14 * bw) / 13;
+      const rows = keys.map(k => { const d = p.days[k] || {}, m = md[k] || {}; return { k, t: (d.ms || 0) / 60000, m: (d.mathMs || 0) / 60000, n: m.n || 0, goal: !!m.goal, done: !!d.done }; });
+      const max = Math.max(20, ...rows.map(r => r.t + r.m));
+      let svg = `<svg viewBox="0 0 ${W} ${H + 40}" width="100%" role="img" aria-label="Minutes played per day">`;
+      [10, 20].forEach(v => { const y = H - H * v / max; svg += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#2c2148"/><text x="${W}" y="${y - 3}" text-anchor="end" fill="#9a8bc2" font-size="10">${v} min</text>`; });
+      rows.forEach((r, i) => {
+        const x = i * (bw + gap), ht = H * r.t / max, hm = H * r.m / max;
+        const tip = `${r.k}: typing ${r.t.toFixed(1)} min, math ${r.m.toFixed(1)} min, ${r.n} facts answered${r.goal ? ', math goal hit' : ''}${r.done ? ', daily hunt done' : ''}`;
+        svg += `<g><title>${tip}</title><rect x="${x}" y="0" width="${bw}" height="${H + 30}" fill="transparent"/>`;
+        if (ht > 0) svg += `<rect x="${x}" y="${H - ht}" width="${bw}" height="${Math.max(1, ht)}" rx="${hm > 0 ? 0 : 3}" fill="#c08518"/>`;
+        if (hm > 0) svg += `<rect x="${x}" y="${H - ht - hm - (ht > 0 ? 2 : 0)}" width="${bw}" height="${Math.max(1, hm)}" rx="3" fill="#2f86c8"/>`;
+        svg += `<text x="${x + bw / 2}" y="${H + 13}" text-anchor="middle" fill="#cbbcec" font-size="10">${Number(r.k.slice(8))}</text>`;
+        if (r.goal || r.done) svg += `<text x="${x + bw / 2}" y="${H + 27}" text-anchor="middle" fill="#ffcf5a" font-size="11">${r.done ? '✓' : ''}${r.goal ? '★' : ''}</text>`;
+        svg += '</g>';
+      });
+      svg += `<line x1="0" x2="${W}" y1="${H}" y2="${H}" stroke="#4a3a70"/></svg>`;
+      const facts = rows.reduce((a, r) => a + r.n, 0);
+      return svg + `<div class="gu-legend"><span><i style="background:#c08518"></i>Typing minutes</span><span><i style="background:#2f86c8"></i>Math minutes</span><span>✓ daily hunt done</span><span>★ math goal</span></div>
+        <p class="gu-note">${facts} facts answered in the last 14 days. A full daily hunt is 10 minutes of typing plus 10 of math. Day numbers along the bottom.</p>`;
+    },
+    // The key heat map: each key colored by how often it is missed. Grey keys have too few presses to tell.
+    typing(p) {
+      const ks = p.keyStats || {}, rows = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+      const cls = k => { const s = ks[k]; if (!s || s.hit + s.miss < 8) return ['none', 'Not enough presses yet'];
+        const acc = s.hit / (s.hit + s.miss);
+        return acc >= 0.95 ? ['good', `${Math.round(acc * 100)}% right`] : acc >= 0.85 ? ['mid', `${Math.round(acc * 100)}% right`] : ['bad', `${Math.round(acc * 100)}% right`]; };
+      const kb = rows.map((r, i) => `<div class="gu-kbrow" style="padding-left:${i * 14}px">` + [...r].map(k => { const [c, t] = cls(k); return `<span class="gu-k ${c}" title="${k.toUpperCase()}: ${t}">${k.toUpperCase()}</span>`; }).join('') + '</div>').join('');
+      const modes = MODE_ORDER.map(k => { const g = p.modes[k] || {}; return `<li><span>${MODES[k].name}</span><span>${g.bestWave ? 'best wave ' + g.bestWave : 'not tried yet'}</span></li>`; }).join('');
+      return `<div class="gu-kb">${kb}</div><div class="gu-legend"><span><i class="good"></i>95%+ right</span><span><i class="mid"></i>85 to 95%</span><span><i class="bad"></i>under 85%</span><span><i class="none"></i>too few presses</span></div>
+        <p>Best speed: <b>${p.ach.bestWpm} words per minute</b> · best accuracy: <b>${p.ach.bestAcc}%</b> · tricky keys: <b>${this.scene.weakKeysFor(p, 4).map(k => k.toUpperCase()).join(' ') || 'none yet'}</b></p>
+        <ul class="gu-map">${modes}</ul>`;
+    },
+    settings(m) {
+      const s = m.settings, opt = (vals, cur, fmt) => vals.map(v => `<option value="${v}"${Number(cur) === v ? ' selected' : ''}>${fmt(v)}</option>`).join('');
+      return `<label>Daily math goal <select data-set="goal">${opt([30, 45, 60, 80, 100], s.goal, v => v + ' right answers')}</select></label>
+        <label>Most math minutes in a day <select data-set="cap">${opt([0, 10, 15, 20, 30], s.cap, v => v ? v + ' minutes' : 'No limit')}</select></label>
+        <label>How fast enemies walk in Math Hunt <select data-set="pace">${opt([0.8, 1, 1.2], s.pace, v => v === 1 ? 'Normal' : v < 1 ? 'Slower' : 'Faster')}</select></label>
+        <label class="gu-check"><input type="checkbox" data-set="hints"${s.hints ? ' checked' : ''}> Show a hint picture on a fact missed twice in a hunt</label>
+        <p class="gu-note">The order of the tables follows what most schools use: ×1, ×10, ×2, ×5, ×4, ×3, ×9, ×6, ×7, ×8. Changes save right away.</p>
+        <button class="gu-btn" data-act="pin">Change the PIN</button>`;
+    },
+    report(p) {
+      const m = MX.ensure(p), lv = MX.ALL_FACTS.map(k => MX.level(p, k)), F = m.facts;
+      const known = lv.filter(l => l >= 2).length, fluent = lv.filter(l => l >= 3).length, mastered = lv.filter(l => l === 4).length;
+      const keys = this.dateKeys(14), mins = keys.reduce((a, k) => a + ((p.days[k] || {}).mathMs || 0), 0) / 60000;
+      const facts = keys.reduce((a, k) => a + ((m.days[k] || {}).n || 0), 0);
+      const weak = MX.weakFacts(p, 5).map(k => { const [a, b] = MX.parse(k); return `${b} × ${a} (missed ${F[k].miss} of ${F[k].hit + F[k].miss})`; });
+      const stages = MX.STAGES.filter(s => s.id <= m.open).map(s => `${s.name} ${s.label}: ${MX.progress(p, s.id).known}/${MX.progress(p, s.id).total}${m.mastered[s.id] ? ' (mastered)' : ''}`);
+      return `${p.name}'s times tables (TypeSlayer Math Hunt), ${todayKey()}\n` +
+        `Known ${known} of 55 facts, Fluent (under 3 seconds) ${fluent}, Mastered ${mastered}.\n` +
+        `Last 14 days: ${Math.round(mins)} minutes of math, ${facts} facts answered.\n` +
+        `Places: ${stages.join('; ')}.\n` +
+        (weak.length ? `Facts to practice: ${weak.join(', ')}.\n` : '') +
+        `Typing: best ${p.ach.bestWpm} words per minute, best accuracy ${p.ach.bestAcc}%.`;
+    },
+    copy() {
+      const text = this.report(this.profile()), note = this.el.querySelector('.gu-copied');
+      const done = () => { note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); };
+      const fallback = () => {
+        const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) { /* the text stays selected for a manual copy */ }
+        ta.remove();
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    },
+  };
+
   class Hunt extends Phaser.Scene {
     constructor() { super('hunt'); }
 
@@ -726,11 +1046,19 @@
         .setColor(jammed ? '#ff7b7b' : '#9a8bc2');
       if (this.practice) return;
       const m = this.mutGfx; m.clear();
+      if (math && (this.waveWrong >= 3 || this.mutantDue)) {   // misses piling up: the math Mutant meter
+        const f = Math.min(1, this.waveWrong / MATH_MUTANT);
+        m.fillStyle(0x2c2148, 1); m.fillRoundedRect(20, 180, 200, 8, 4);
+        m.fillStyle(this.mutantDue ? 0x9be15d : f > 0.6 ? 0xff5a5a : 0xffb547, 1); m.fillRoundedRect(20, 180, Math.max(8, 200 * f), 8, 4);
+        this.mutLabel.setText(this.mutantDue ? (this.mutantSpawned ? 'Beat the Mega Mutant!' : 'Mega Mutant is coming!') : `Misses this wave  ${this.waveWrong} / ${MATH_MUTANT}`)
+          .setColor(this.mutantDue ? '#9be15d' : '#ff9b9b');
+        return;
+      }
       if (math) {   // Math Hunt shows the daily goal here instead of the Mutant meter
-        const right = this.mathToday().right, f = Math.min(1, right / MX.DAILY_GOAL), done = right >= MX.DAILY_GOAL;
+        const right = this.mathToday().right, f = Math.min(1, right / MX.goal(this.profile)), done = right >= MX.goal(this.profile);
         m.fillStyle(0x2c2148, 1); m.fillRoundedRect(20, 180, 200, 8, 4);
         if (f > 0) { m.fillStyle(done ? 0x7be08f : 0x5ec8ff, 1); m.fillRoundedRect(20, 180, Math.max(8, 200 * f), 8, 4); }
-        this.mutLabel.setText(done ? `Daily math goal done!  ${right} facts` : `Daily math goal  ${right} / ${MX.DAILY_GOAL} facts`).setColor(done ? '#7be08f' : '#e4d9fb');
+        this.mutLabel.setText(done ? `Daily math goal done!  ${right} facts` : `Daily math goal  ${right} / ${MX.goal(this.profile)} facts`).setColor(done ? '#7be08f' : '#e4d9fb');
         return;
       }
       const f = Math.min(1, this.waveWrong / MUTANT_AFTER);
@@ -750,7 +1078,7 @@
       if (this.modeKey === 'math') {
         const st = this.mh.stats, kind = this.mathKind(this.wave);
         const acc = st.n ? Math.round(st.right / st.n * 100) : 100, avg = st.right ? (st.ms / st.right / 1000).toFixed(1) + 's' : '-';
-        this.waveText.setText(`${kind === 'bonus' ? 'Math Hunt' : MX.stage(this.mh.stage).name}  ·  Wave ${this.wave}: ${MATH_WAVES[kind].name}`);
+        this.waveText.setText(`${['bonus', 'mixed', 'practice'].includes(kind) ? 'Math Hunt' : MX.stage(this.mh.stage).name}  ·  Wave ${this.wave}: ${MATH_WAVES[kind].name}`);
         this.statsText.setText(`Right first try ${acc}%   ·   Average ${avg}   ·   Pace ${this.pace.toFixed(1)}×`);
       } else this.waveText.setText(`${this.practice ? 'Practice  ·  ' : ''}${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
       if (this.modeKey !== 'math') this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps && !this.practice ? '   ·   Capitals ×1.5' : ''}`);
@@ -901,7 +1229,7 @@
     }
     updateNextKey() {
       let c = null;
-      if (this.state === 'playing' && this.kbShown) {
+      if (this.state === 'playing' && this.kbShown && this.modeKey !== 'math') {   // math practice never lights the answer
         if (this.target && !this.target.dead) c = this.target.word[this.target.typed];
         else {
           const alive = this.vamps.filter(v => !v.dead);
@@ -988,9 +1316,13 @@
       this.menuPrep();
       this.state = 'profiles';
       this.logo('Who is hunting today?');
-      this.refreshKeyboard('1234n', '');
+      this.refreshKeyboard('1234ng', '');
       this.drawSpace(false);
       this.tipText.setText('Each hunter keeps their own progress, rewards and daily hunt on this device. Press a number to pick yours.');
+      this.card(640, 528, 300, 40, () => this.openGrownups(), false, 0x5b4f78);
+      this.menu.push(
+        this.txt(512, 528, 'G', { fontSize: '16px', fontStyle: '700', color: '#140c28', backgroundColor: '#cbbcec', padding: { x: 7, y: 1 } }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(546, 528, 'Grown-ups: progress and settings', { fontSize: '15px', fontStyle: '600', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970));
       const ps = Store.data.profiles;
       const slots = ps.length + (ps.length < 4 ? 1 : 0);
       const cw = 230, gap = 24, x0 = 640 - ((slots - 1) * (cw + gap)) / 2;
@@ -1016,6 +1348,12 @@
           this.txt(x, y + 60, 'New hunter', { fontSize: '26px', fontStyle: '700' }).setOrigin(0.5).setDepth(2970),
           this.txt(x, y + 94, 'Press N', { fontSize: '16px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0.5).setDepth(2970));
       }
+    }
+    openGrownups() {
+      Sfx.click();
+      this.clearMenu();
+      this.state = 'grownups';
+      Grownups.open(this);
     }
     pickProfile(i) {
       const p = Store.data.profiles[i]; if (!p) return;
@@ -1091,8 +1429,8 @@
           this.txt(x - 258, y - 11, 'Math Hunt', { fontSize: '22px', fontStyle: '700', color: '#7be08f' }).setOrigin(0, 0.5).setDepth(2970),
           this.txt(x - 258, y + 13, m.placed ? `Times tables  ·  ${S.name} ${S.label}: ${pg.known} of ${pg.total} known` : 'Times tables  ·  new! Start with a quick scouting round',
             { fontSize: '14px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970),
-          this.txt(x + 300, y, right >= MX.DAILY_GOAL ? `Math goal done!\n${right} facts today` : `Math goal\n${right} / ${MX.DAILY_GOAL} facts`,
-            { fontSize: '15px', fontStyle: '600', color: right >= MX.DAILY_GOAL ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
+          this.txt(x + 300, y, right >= MX.goal(this.profile) ? `Math goal done!\n${right} facts today` : `Math goal\n${right} / ${MX.goal(this.profile)} facts`,
+            { fontSize: '15px', fontStyle: '600', color: right >= MX.goal(this.profile) ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
       }
       // practice switch
       const px = 1020, py = 196;
@@ -1277,57 +1615,61 @@
 
     // ---------- Math Hunt: menu ----------
     mathToday() { return (this.profile && MX.ensure(this.profile).days[todayKey()]) || { n: 0, right: 0, fast: 0 }; }
+    // A grown-up can cap math minutes per day. Practice still works when the cap is reached.
+    mathCapped() { const c = MX.ensure(this.profile).settings.cap; return c > 0 && todayMs(this.profile, true) >= c * 60000; }
+    mixedOpen() { const m = MX.ensure(this.profile); return m.placed && Object.values(m.facts).filter(f => f.lvl >= 1).length >= 10; }
+    // The math menu: Smart Hunt, the map of all nine places, Mixed Review, practice, and today's goal.
     showMath() {
       this.menuPrep();
       this.state = 'mathmenu';
       this.practice = false;
       this.coverText(true);
       const p = this.profile, m = MX.ensure(p);
-      MX.updateOpen(p);
+      MX.updateOpen(p); MX.updateMastery(p);
       Store.data.lastMode = 'math'; Store.save();
       this.logo(`Math Hunt, ${p.name}`);
-      this.refreshKeyboard('123', '');
+      this.refreshKeyboard('123456789rp', '');
       this.drawSpace(true);
-      const smart = MX.smartStage(p), S = MX.stage(smart);
-      this.tipText.setText(m.placed
-        ? 'Type the answer and the crossbow fires by itself. Answers under 3 seconds make a fact Fluent.'
+      const smart = MX.smartStage(p), S = MX.stage(smart), capped = this.mathCapped();
+      this.tipText.setText(capped ? `That's all the math time for today. Practice still works, and so does the typing hunt!`
+        : m.placed ? 'Type the answer and the crossbow fires by itself. Answers under 3 seconds make a fact Fluent.'
         : 'Your first Math Hunt starts with a scouting round. Scouts never bite, so just do your best.');
       const x = 470;
-      this.card(x, 200, 700, 76, () => this.startMath(smart), true, 0x7be08f);
+      this.card(x, 196, 700, 64, () => this.startMath(smart), true, capped ? 0x5b4f78 : 0x7be08f);
       this.menu.push(
-        this.txt(x - 330, 200, 'SPACE', { fontSize: '17px', fontStyle: '700', color: '#140c28', backgroundColor: '#7be08f', padding: { x: 8, y: 3 } }).setOrigin(0, 0.5).setDepth(2970),
-        this.txt(x - 250, 186, 'Smart Hunt', { fontSize: '26px', fontStyle: '700', color: '#7be08f' }).setOrigin(0, 0.5).setDepth(2970),
-        this.txt(x - 250, 216, m.placed ? `The ${S.name} (${S.label}), plus the facts that are due today` : 'First time: a 3-minute scouting round finds the facts you already know',
-          { fontSize: '16px', fontStyle: '500', color: '#e4d9fb' }).setOrigin(0, 0.5).setDepth(2970));
-      MX.STAGES.forEach((s, i) => {
-        const y = 300 + i * 82, open = s.id <= m.open, pg = MX.progress(p, s.id);
-        this.card(x, y, 700, 70, () => (open ? this.startMath(s.id) : this.mathLocked(s)), false, open ? null : 0x3d2b63);
-        const prev = MX.stage(s.id - 1);
-        this.menu.push(
-          this.txt(x - 330, y, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: open ? '#ffcf5a' : '#5b4f78', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
-          this.txt(x - 290, y - 13, `${s.name}  ·  ${s.label}`, { fontSize: '22px', fontStyle: '700', color: open ? '#ffffff' : '#7d6fa3' }).setOrigin(0, 0.5).setDepth(2970),
-          this.txt(x - 290, y + 14, open
-            ? `${pg.known} of ${pg.total} known  ·  ${pg.fluent} fluent${m.mastered[s.id] ? '  ·  Mastered!' : ''}`
-            : `Opens when ${Math.round(MX.GATE * 100)}% of the ${prev.name} is known (now ${Math.round(MX.progress(p, prev.id).pct * 100)}%)`,
-            { fontSize: '15px', fontStyle: '500', color: open ? '#cbbcec' : '#7d6fa3' }).setOrigin(0, 0.5).setDepth(2970));
-        if (open) this.menu.push(this.levelBar(x + 120, y, 210, 14, pg.counts));
-      });
+        this.txt(x - 330, 196, 'SPACE', { fontSize: '17px', fontStyle: '700', color: '#140c28', backgroundColor: capped ? '#5b4f78' : '#7be08f', padding: { x: 8, y: 3 } }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(x - 250, 182, 'Smart Hunt', { fontSize: '24px', fontStyle: '700', color: capped ? '#7d6fa3' : '#7be08f' }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(x - 250, 210, capped ? 'Math time is done for today. Come back tomorrow!'
+          : m.placed ? `The ${S.name} (${S.label}), plus the facts that are due today` : 'First time: a 3-minute scouting round finds the facts you already know',
+          { fontSize: '15px', fontStyle: '500', color: '#e4d9fb' }).setOrigin(0, 0.5).setDepth(2970));
+      this.drawMap(x, 390, 700, 276, smart);
       // daily goal and facts to practice
-      const bx = 1050, by = 268, today = this.mathToday(), done = today.right >= MX.DAILY_GOAL;
-      this.card(bx, by, 380, 212, () => {});
+      const bx = 1050, by = 236, today = this.mathToday(), G = MX.goal(p), done = today.right >= G;
+      this.card(bx, by, 380, 160, () => {});
       const g = this.add.graphics().setDepth(2970);
-      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 150, by - 34, 300, 12, 6);
-      g.fillStyle(done ? 0x7be08f : 0x5ec8ff, 1); g.fillRoundedRect(bx - 150, by - 34, Math.max(12, 300 * Math.min(1, today.right / MX.DAILY_GOAL)), 12, 6);
-      const weak = MX.weakFacts(p, 3);
+      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 150, by - 22, 300, 12, 6);
+      g.fillStyle(done ? 0x7be08f : 0x5ec8ff, 1); g.fillRoundedRect(bx - 150, by - 22, Math.max(12, 300 * Math.min(1, today.right / G)), 12, 6);
+      const weak = MX.weakFacts(p, 3), mt = todayMs(p, true);
       this.menu.push(g,
-        this.txt(bx, by - 84, 'DAILY MATH GOAL', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2', padding: { x: 4 } }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
-        this.txt(bx, by - 56, done ? `Done! ${today.right} facts today` : `${today.right} of ${MX.DAILY_GOAL} facts today`, { fontSize: '24px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
-        this.txt(bx, by - 2, `Under 3 seconds: ${today.fast}   ·   Math time: ${todayMs(p, true) >= PART_MS ? 'done ✓' : fmtMin(todayMs(p, true)) + ' / 10:00'}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
-        this.txt(bx, by + 52, weak.length ? `Facts to practice:\n${weak.map(MX.label).join('    ')}` : m.placed ? 'Play a hunt and I will\nfind your tricky facts.' : 'Every hunter starts with\na scouting round.',
-          { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970));
+        this.txt(bx, by - 62, 'DAILY MATH GOAL', { fontSize: '13px', fontStyle: '700', color: '#9a8bc2', padding: { x: 4 } }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
+        this.txt(bx, by - 40, done ? `Done! ${today.right} facts today` : `${today.right} of ${G} facts today`, { fontSize: '21px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by + 6, `Under 3 seconds: ${today.fast}   ·   Math time: ${mt >= PART_MS ? 'done ✓' : fmtMin(mt) + ' / 10:00'}`, { fontSize: '15px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by + 46, weak.length ? `Facts to practice:\n${weak.map(MX.label).join('    ')}` : m.placed ? 'Play a hunt and I will\nfind your tricky facts.' : 'Every hunter starts with\na scouting round.',
+          { fontSize: '15px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 4 }).setOrigin(0.5).setDepth(2970));
+      // Mixed Review and practice
+      const mixed = this.mixedOpen();
+      [['R', 'Mixed Review', mixed ? (capped ? 'Math time is done for today' : 'Every fact you have met, faster each wave') : 'Opens after your first hunt', mixed && !capped, '#ffcf5a', 352, () => this.startMath(smart, 'mixed')],
+       ['P', 'Practice', 'Hint pictures on every fact. Nothing counts.', true, '#5ec8ff', 414, () => this.startMath(smart, 'practice')]]
+        .forEach(([key, name, sub, on, col, y, go]) => {
+          this.card(bx, y, 380, 54, go, false, on ? null : 0x3d2b63);
+          this.menu.push(
+            this.txt(bx - 172, y, key, { fontSize: '18px', fontStyle: '700', color: '#140c28', backgroundColor: on ? col : '#5b4f78', padding: { x: 8, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+            this.txt(bx - 132, y - 11, name, { fontSize: '19px', fontStyle: '700', color: on ? col : '#7d6fa3' }).setOrigin(0, 0.5).setDepth(2970),
+            this.txt(bx - 132, y + 12, sub, { fontSize: '13px', fontStyle: '500', color: on ? '#cbbcec' : '#7d6fa3' }).setOrigin(0, 0.5).setDepth(2970));
+        });
       // what the colors mean
-      const ly = 412;
-      this.card(bx, ly, 380, 52, () => {});
+      const ly = 474;
+      this.card(bx, ly, 380, 46, () => {});
       const items = MX.LEVELS.map(L => ({ L, t: this.txt(0, ly, L.name, { fontSize: '13px', fontStyle: '600', color: '#e4d9fb' }).setOrigin(0, 0.5).setDepth(2970) }));
       let lx = bx - (items.reduce((w, it) => w + it.t.width + 30, 0) - 12) / 2;
       items.forEach(({ L, t }) => {
@@ -1335,10 +1677,59 @@
         t.setX(lx + 16); lx += t.width + 30;
         this.menu.push(d, t);
       });
-      this.menu.push(this.txt(640, 538, 'SPACE Smart Hunt   ·   1 to 3 pick a place   ·   ESC back to the hunt menu',
+      this.menu.push(this.txt(640, 540, 'SPACE Smart Hunt   ·   1 to 9 pick a place   ·   R mixed review   ·   P practice   ·   ESC back',
         { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
     }
-    // A bar split by level: grey New, red Learning, amber Known, green Fluent, gold Mastered.
+    // The map: nine places on a winding path. Each marker's ring fills as its facts become Known, a lock sits on the
+    // places still closed, and a gold stamp marks every place where all the facts are Mastered.
+    drawMap(cx, cy, w, h, smart) {
+      const p = this.profile, m = MX.ensure(p), x0 = cx - w / 2, y0 = cy - h / 2;
+      this.card(cx, cy, w, h, () => {});
+      if (this.textures.exists('mathMap')) {
+        this.textures.get('mathMap').setFilter(Phaser.Textures.FilterMode.NEAREST);
+        const img = this.add.image(cx, cy, 'mathMap').setDisplaySize(w - 6, h - 6).setDepth(2955).setAlpha(0.5);
+        const mg = this.make.graphics({ add: false }); mg.fillStyle(0xffffff); mg.fillRoundedRect(x0 + 3, y0 + 3, w - 6, h - 6, 16);
+        img.setMask(mg.createGeometryMask());
+        this.menu.push(img, mg);
+      }
+      const spots = [[0.1, 0.27], [0.29, 0.27], [0.5, 0.27], [0.71, 0.27], [0.9, 0.27], [0.8, 0.7], [0.6, 0.7], [0.4, 0.7], [0.2, 0.7]];
+      const pts = this.mapPts = spots.map(([fx, fy]) => ({ x: x0 + fx * w, y: y0 + fy * h }));
+      const g = this.add.graphics().setDepth(2956);
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1], open = i + 2 <= m.open, n = Math.floor(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 14);
+        g.lineStyle(12, 0x0d0a1a, 0.8); g.lineBetween(a.x, a.y, b.x, b.y);
+        g.lineStyle(5, open ? 0xffcf5a : 0x5b4f78, 1);
+        for (let j = 0; j < n; j += 2) g.lineBetween(a.x + (b.x - a.x) * j / n, a.y + (b.y - a.y) * j / n, a.x + (b.x - a.x) * (j + 1) / n, a.y + (b.y - a.y) * (j + 1) / n);
+      }
+      this.menu.push(g);
+      MX.STAGES.forEach((s, i) => {
+        const P = pts[i], open = s.id <= m.open, pg = MX.progress(p, s.id), r = 27;
+        if (s.id === smart && open) {
+          const glow = this.add.circle(P.x, P.y, r + 9, 0x7be08f, 0.35).setDepth(2956);
+          this.tweens.add({ targets: glow, scale: 1.18, alpha: 0.12, duration: 800, yoyo: true, repeat: -1 });
+          this.menu.push(glow);
+        }
+        const mk = this.add.graphics().setDepth(2957);
+        mk.fillStyle(open ? 0x140c28 : 0x241a3d, 1); mk.fillCircle(P.x, P.y, r);
+        mk.lineStyle(6, 0x2c2148, 1); mk.strokeCircle(P.x, P.y, r - 4);
+        if (open && pg.pct > 0) {
+          mk.lineStyle(6, pg.pct >= MX.GATE ? 0x7be08f : 0x5ec8ff, 1);
+          mk.beginPath(); mk.arc(P.x, P.y, r - 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pg.pct)); mk.strokePath();
+        }
+        mk.lineStyle(2, m.mastered[s.id] ? 0xffcf5a : open ? 0xcbbcec : 0x5b4f78, 1); mk.strokeCircle(P.x, P.y, r);
+        const z = this.add.zone(P.x, P.y + 14, 128, 92).setInteractive({ useHandCursor: true }).setDepth(2960);
+        z.on('pointerdown', () => { Sfx.init(); if (open) this.startMath(s.id); else this.mathLocked(s); });
+        this.menu.push(mk, z);
+        if (!open && ICONS.lock && this.textures.exists(ICONS.lock)) this.menu.push(this.add.image(P.x, P.y, ICONS.lock).setDisplaySize(26, 26).setDepth(2958));
+        else this.menu.push(this.txt(P.x, P.y, `${s.id}`, { fontSize: '22px', fontStyle: '700', color: open ? '#ffffff' : '#7d6fa3' }).setOrigin(0.5).setDepth(2958));
+        if (m.mastered[s.id] && ICONS.stamp && this.textures.exists(ICONS.stamp)) this.menu.push(this.add.image(P.x + 23, P.y - 20, ICONS.stamp).setDisplaySize(30, 30).setDepth(2959));
+        this.menu.push(
+          this.txt(P.x, P.y + r + 13, s.name, { fontSize: '15px', fontStyle: '700', color: open ? '#ffffff' : '#9a8bc2', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2958),
+          this.txt(P.x, P.y + r + 31, open ? `${s.label.replace(/,| and/g, '')}  ·  ${pg.known}/${pg.total}` : s.label,
+            { fontSize: '13px', fontStyle: '600', color: open ? '#cbbcec' : '#7d6fa3', stroke: '#140c28', strokeThickness: 3 }).setOrigin(0.5).setDepth(2958));
+      });
+    }
+    // A bar split by level: grey New, red Learning, blue Known, green Fluent, gold Mastered.
     levelBar(x, y, w, h, counts) {
       const g = this.add.graphics().setDepth(2970), total = counts.reduce((a, b) => a + b, 0) || 1;
       g.fillStyle(0x2c2148, 1); g.fillRoundedRect(x, y - h / 2, w, h, h / 2);
@@ -1352,93 +1743,110 @@
     }
     mathLocked(s) {
       Sfx.miss();
-      const prev = MX.stage(s.id - 1);
-      this.floatText(470, 300 + (s.id - 1) * 82, `Know ${Math.round(MX.GATE * 100)}% of the ${prev.name} to open the ${s.name}`, '#ffb547', 20);
+      const prev = MX.stage(s.id - 1), P = (this.mapPts || [])[s.id - 1] || { x: 470, y: 390 };
+      this.floatText(Phaser.Math.Clamp(P.x, 330, 610), P.y - 40, `Know ${Math.round(MX.GATE * 100)}% of the ${prev.name} to open the ${s.name}`, '#ffb547', 19);
     }
 
     // ---------- Math Hunt: a hunt ----------
     // One hunt: a scouting round the very first time (or a warm-up of known facts), two learning waves that each
-    // teach a lesson, then a review wave of facts due from other days with the stage's boss at the end.
-    startMath(stageId) {
-      Sfx.click();
+    // teach a lesson, then a review wave of facts due from other days with the place's boss at the end.
+    // Mixed Review is endless waves of every fact met so far. Practice shows hint pictures and nothing counts.
+    startMath(stageId, mode = 'hunt') {
       const p = this.profile, m = MX.ensure(p);
+      if (mode !== 'practice' && this.mathCapped()) { Sfx.miss(); this.floatText(470, 250, 'Math time is done for today. Practice still works!', '#ffb547', 20); return; }
+      if (mode === 'mixed' && !this.mixedOpen()) { Sfx.miss(); this.floatText(1050, 310, 'Finish your first hunt to open Mixed Review', '#ffb547', 18); return; }
+      Sfx.click();
       const known = MX.openStages(p).reduce((n, s) => n + MX.progress(p, s.id).known, 0);
       const plan = [];
-      if (!m.placed) plan.push('scout');
-      else if (known >= 4) plan.push('warmup');
-      plan.push('learn', 'learn', 'review');
+      if (mode === 'hunt') {
+        if (!m.placed) plan.push('scout');
+        else if (known >= 4) plan.push('warmup');
+        plan.push('learn', 'learn', 'review');
+      }
       this.mh = {
-        stage: stageId, plan, retry: [], focus: [], last: null, lesson: null, done: false,
+        mode, stage: stageId, plan, retry: [], focus: [], last: null, lesson: null, done: false, place: null, waveMissed: [],
         stats: { n: 0, right: 0, fast: 0, ms: 0 }, wave: { n: 0, right: 0 }, start: {}, opened: [], misses: {},
         scout: plan[0] === 'scout' ? { list: MX.scoutList(), i: 0, results: [], missRun: 0 } : null,
       };
+      this.practice = mode === 'practice';
       this.startGame('math', 1);
     }
-    mathKind(n) { return n <= this.mh.plan.length ? this.mh.plan[n - 1] : 'bonus'; }
+    mathKind(n) {
+      const mh = this.mh;
+      if (mh.mode !== 'hunt') return mh.mode;
+      return n <= mh.plan.length ? mh.plan[n - 1] : 'bonus';
+    }
     mathCfg(kind) {
       const C = Object.assign({ kind }, MATH_WAVES[kind]);
       if (kind === 'scout') C.count = this.mh.scout.list.length;
-      if (kind === 'bonus') {   // every bonus wave is a little longer and faster
-        const extra = this.wave - this.mh.plan.length - 1;
+      const extra = kind === 'bonus' ? this.wave - this.mh.plan.length - 1 : kind === 'mixed' ? this.wave - 1 : -1;
+      if (extra >= 0) {   // every bonus or mixed wave is a little longer and faster, with a boss every other wave
         Object.assign(C, { count: C.count + extra * 2, speed: C.speed + extra * 3, gap: Math.max(2400, C.gap - extra * 150), boss: extra % 2 === 1 });
       }
+      C.speed *= MX.ensure(this.profile).settings.pace || 1;   // a grown-up can slow the walkers down or speed them up
       return C;
     }
     mathIntro(clearedNote) {
       const mh = this.mh, p = this.profile;
-      if (this.wave === mh.plan.length + 1 && !mh.done) { mh.done = true; this.mathResults(clearedNote); return; }
+      if (mh.mode === 'hunt' && this.wave === mh.plan.length + 1 && !mh.done) { mh.done = true; this.mathResults(clearedNote); return; }
       this.state = 'intermission';
       const kind = this.mathKind(this.wave), S = MX.stage(mh.stage);
       this.cfg = this.mathCfg(kind);
       this.hideGlow(); this.drawSpace(true);
-      this.tipText.setText(S.tip);
+      this.tipText.setText(kind === 'practice' ? 'Practice: the picture shows the fact as rows of dots. Count by rows if you need to!'
+        : kind === 'mixed' ? 'Mixed Review gets a little faster every wave. How far can you go?' : S.tip);
+      if (kind === 'practice') this.refreshKeyboard('0123456789', '');
       mh.lesson = null;
       if (kind === 'learn') { const L = MX.huntLesson(p, mh.stage); if (MX.canLearn(p, L)) mh.lesson = L; }
       this.updateHud();
       const first = this.wave === 1 && !clearedNote;
-      const rules = first ? `\n\nType the answer and the crossbow fires by itself. Backspace fixes a slip.\nDon't know one? Press SPACE to see the answer, then type it.${kind === 'scout' ? '' : `\n${MATH_JAM} wrong answers in a row jam your crossbow.`}` : '';
+      const rules = first ? `\n\nType the answer and the crossbow fires by itself. Backspace fixes a slip.\nDon't know one? Press SPACE to see the answer, then type it.${kind === 'scout' || kind === 'practice' ? '' : `\n${MATH_JAM} wrong answers in a row jam your crossbow.`}` : '';
       const what = {
         scout: `Let's find the facts you already know. Scouts never bite, so just do your best.\nQuick answers count the most.`,
         warmup: 'Warm-up: facts you already know. Nice and quick!',
         learn: mh.lesson ? '' : `Lock in the facts you are learning. Slow mummies carry them, so take a breath and think.`,
-        review: `Review: facts from other days, mixed together.\nWatch out: a boss shows up at the end! Answer all of its facts to chase it off.`,
+        review: `Review: facts from other days, mixed together. Ghosts hide a number: ? × 6 = 42.\nWatch out: a boss shows up at the end! Answer all of its facts to chase it off.`,
         bonus: `Bonus round: every fact you have met, a little faster each wave.${this.cfg.boss ? '\nA boss is coming at the end!' : ''}`,
+        mixed: `Mixed Review: every fact you have met, a little faster each wave.${this.cfg.boss ? '\nA boss is coming at the end!' : ''}`,
+        practice: `Every enemy shows a picture of its fact. Nothing counts and nobody bites,\nso take your time and count the dots if you need to.`,
       }[kind];
       if (mh.lesson) { this.showLessonCard(clearedNote); return; }
       const noteLines = clearedNote ? (clearedNote.match(/\n/g) || []).length * 30 : 0;
       const body = (clearedNote ? clearedNote + '\n\n' : '') + what + rules;
       this.showPanel({
         y: 300, h: 250 + (clearedNote ? 70 : 0) + noteLines + (rules ? 120 : 0) + ((what.match(/\n/g) || []).length * 30),
-        title: clearedNote ? `Wave ${this.wave - 1} cleared!` : kind === 'scout' ? 'Scouting round' : `${S.name}: wave ${this.wave}`,
+        title: clearedNote ? `Wave ${this.wave - 1} cleared!` : kind === 'scout' ? 'Scouting round' : kind === 'mixed' ? 'Mixed Review' : kind === 'practice' ? 'Math practice' : `${S.name}: wave ${this.wave}`,
         body,
         footer: 'SPACE to start   ·   ESC for the math menu',
       });
     }
-    // A new-fact card: each new fact is shown as rows of dots with its answer, and Titus types the answer once.
+    // A new-fact card: each new fact is drawn as rows of little pictures with its answer, and Titus types the answer once.
     showLessonCard(clearedNote) {
       const L = this.mh.lesson;
       const items = (L.rule ? [L.example] : L.facts.filter(k => L.fresh.includes(k)).map(k => MX.parse(k)))
         .map(([a, b]) => { const t = L.table; const [x, y] = a === t ? [a, b] : [b, a]; return { a: x, b: y, ans: x * y, buf: '', done: false }; });
       this.mh.card = { items, i: 0 };
       const title = L.rule ? `The ×${L.table} rule` : items.length > 1 ? 'Two new facts!' : 'A new fact!';
-      const body = (clearedNote ? clearedNote + '\n\n' : '') + (L.rule ? L.text : `Look at the dots, then type each answer once.`);
+      const body = (clearedNote ? clearedNote + '\n\n' : '') + (L.rule ? L.text : `Look at the picture, then type each answer once.`);
       const extra = clearedNote ? 70 + (clearedNote.match(/\n/g) || []).length * 30 : 0;
       const h = 450 + extra;
       this.showPanel({ y: 300 + extra / 4, h, title, body, footer: 'Type the answer to learn it' });
       this.state = 'mathcard';
       const top = -h / 2 + 140 + extra;
+      const icon = ICONS[ARRAY_ICONS[L.table % ARRAY_ICONS.length]], hasIcon = icon && this.textures.exists(icon);
       items.forEach((it, i) => {
         const cx = items.length > 1 ? (i ? 175 : -175) : 0;
-        const rows = Math.min(it.a, it.b), cols = Math.max(it.a, it.b), step = Math.min(24, Math.floor(150 / cols));
-        const g = this.add.graphics();
+        const rows = Math.min(it.a, it.b), cols = Math.max(it.a, it.b), step = Math.min(44, Math.floor(260 / cols), Math.floor(130 / rows));
+        const g = this.add.graphics(), pics = [];
         for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-          g.fillStyle(FINGER_COLORS[r % FINGER_COLORS.length], 1);
-          g.fillCircle(cx - (cols - 1) * step / 2 + c * step, top + 80 - (rows - 1) * step / 2 + r * step, step * 0.38);
+          const px = cx - (cols - 1) * step / 2 + c * step, py = top + 80 - (rows - 1) * step / 2 + r * step;
+          if (hasIcon) pics.push(this.add.image(px, py, icon).setDisplaySize(step * 0.9, step * 0.9));
+          else { g.fillStyle(FINGER_COLORS[r % FINGER_COLORS.length], 1); g.fillCircle(px, py, step * 0.38); }
         }
         it.rowsTxt = this.txt(cx, top + 166, `${rows} row${rows > 1 ? 's' : ''} of ${cols}`, { fontSize: '16px', fontStyle: '500', color: '#9a8bc2' }).setOrigin(0.5);
         it.fact = this.txt(cx, top + 200, `${it.a} × ${it.b} = ${it.ans}`, { fontSize: '34px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5);
         it.prompt = this.txt(cx, top + 242, '', { fontSize: '22px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0.5);
-        this.panel.add([g, it.rowsTxt, it.fact, it.prompt]);
+        this.panel.add([g, ...pics, it.rowsTxt, it.fact, it.prompt]);
       });
       this.drawLessonCard();
     }
@@ -1478,10 +1886,12 @@
       const f = this.panel.list[3];
       f.setText(L.rule ? 'SPACE to start: lots of these are coming!' : 'SPACE to start: watch for these facts!').setColor('#7be08f');
     }
+    // A fact on an enemy. ans is what gets typed (the product, or the hidden number on a ghost), prod is the product.
     makeFact(k) {
       const [lo, hi] = MX.parse(k), flip = Math.random() < 0.5;
-      return { key: k, a: flip ? lo : hi, b: flip ? hi : lo, ans: lo * hi };
+      return { key: k, a: flip ? lo : hi, b: flip ? hi : lo, ans: lo * hi, prod: lo * hi };
     }
+    factText(f) { return f.missing ? `${f.a} × ${f.b} = ${f.prod}` : `${f.a} × ${f.b} = ${f.ans}`; }
     // The next fact for an enemy: a missed fact comes back 2 enemies later, otherwise the engine picks.
     mathFact(kind) {
       const mh = this.mh;
@@ -1492,24 +1902,64 @@
       if (r >= 0) k = mh.retry.splice(r, 1)[0].key;
       else {
         if (mh.last) avoid.add(mh.last);
-        k = MX.pick(this.profile, { kind: kind === 'scout' ? 'bonus' : kind, stage: mh.stage, focus: mh.focus, avoid, today: MX.dayNum() });
+        const pk = ['scout', 'mixed', 'practice'].includes(kind) ? 'bonus' : kind;
+        k = MX.pick(this.profile, { kind: pk, stage: mh.stage, focus: mh.focus, avoid, today: MX.dayNum() });
       }
       mh.last = k;
       return this.makeFact(k);
     }
-    // Slow mummies carry facts still being learned, fast wolf pups carry fluent ones.
-    mathType(fact) {
-      const lvl = MX.level(this.profile, fact.key);
-      const opts = this.cfg.kind === 'scout' ? [['fledgling', 3], ['armored', 1]]
+    // Each enemy has a math job. Slow mummies carry facts still being learned, fast wolf pups carry fluent ones,
+    // armored vampires carry this place's harder facts, a shield guard needs a fact and then its turnaround,
+    // and a ghost hides one of the numbers (? × 6 = 42).
+    mathJob(fact) {
+      const kind = this.cfg.kind, lvl = MX.level(this.profile, fact.key), rule = MX.isRule(fact.key);
+      const has = t => TYPES[t] && this.textures.exists(TYPES[t].sheet);
+      if (!['scout', 'practice', 'warmup'].includes(kind)) {
+        if (lvl >= 3 && !rule && has('ghost') && Math.random() < 0.18) {
+          Object.assign(fact, { missing: true, ans: fact.a });
+          return { type: 'ghost' };
+        }
+        if (lvl >= 2 && fact.a !== fact.b && has('shield') && Math.random() < 0.15) {
+          return { type: 'shield', queue: [{ key: fact.key, a: fact.b, b: fact.a, ans: fact.prod, prod: fact.prod, extra: true }] };
+        }
+      }
+      const inStage = MX.stage(this.mh.stage).pool.includes(fact.key);
+      const opts = kind === 'scout' ? [['fledgling', 3], ['armored', 1]]
+        : kind === 'practice' ? [['fledgling', 3], ['mummy', 1]]
         : lvl <= 1 ? [['mummy', 3], ['fledgling', 1]]
-        : lvl === 2 ? [['fledgling', 3], ['armored', 1.5], ['ghoul', 1]]
+        : lvl === 2 ? [['fledgling', 3], ['armored', inStage && !rule ? 2.5 : 0.5], ['ghoul', 1]]
         : [['wolf', 2], ['ghoul', 1], ['fledgling', 1]];
-      const ok = opts.filter(([t]) => TYPES[t] && this.textures.exists(TYPES[t].sheet));
-      return ok.length ? this.weighted(ok, o => o[1])[0] : 'fledgling';
+      const ok = opts.filter(([t]) => has(t));
+      return { type: ok.length ? this.weighted(ok, o => o[1])[0] : 'fledgling' };
     }
     setFact(v, f) {
       Object.assign(v, { fact: f, word: String(f.ans), display: String(f.ans), buf: '', typed: 0, tried: false, revealed: false, reveal: false, aimAt: this.time.now });
       this.redrawLabel(v);
+    }
+    // A picture hint over the problem: the fact as rows of dots, with a strategy under it. Practice shows it on every
+    // enemy; in a hunt it shows on a fact missed twice (grown-ups can turn that off).
+    wantHint(v) {
+      if (!v.fact || v.boss || this.modeKey !== 'math' || !this.mh) return false;
+      return this.practice || (MX.ensure(this.profile).settings.hints && (this.mh.misses[v.fact.key] || 0) >= 2);
+    }
+    drawHint(v) {
+      const want = this.wantHint(v) ? `${v.fact.a}x${v.fact.b}${v.fact.missing ? '?' : ''}` : null;
+      if (v.hintKey === want) return;
+      if (v.hint) { v.hint.destroy(); v.hint = null; }
+      v.hintKey = want;
+      if (!want) return;
+      const f = v.fact, rows = Math.min(f.a, f.b), cols = Math.max(f.a, f.b), step = 8;
+      const cap = this.txt(0, -6, MX.hint(f.key), { fontSize: '14px', fontStyle: '600', color: '#ffcf5a' }).setOrigin(0.5, 1);
+      const gw = cols * step, gh = rows * step, bw = Math.max(gw, cap.width) + 18, bh = gh + 34;
+      const g = this.add.graphics();
+      g.fillStyle(0x140c28, 0.88); g.fillRoundedRect(-bw / 2, -bh, bw, bh, 8);
+      g.lineStyle(2, 0x5ec8ff, 0.9); g.strokeRoundedRect(-bw / 2, -bh, bw, bh, 8);
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        g.fillStyle(FINGER_COLORS[r % FINGER_COLORS.length], 1);
+        g.fillCircle(-gw / 2 + step / 2 + c * step, -bh + 8 + step / 2 + r * step, step * 0.34);
+      }
+      v.hint = this.add.container(0, -32, [g, cap]);
+      v.label.add(v.hint);
     }
     // The crossbow always aims at the enemy closest to the hunter. It stays on one Titus has started typing.
     mathAim() {
@@ -1555,7 +2005,7 @@
         Sfx.miss();
         v.shakeUntil = now + 220;
         this.revealFact(v);
-        if (this.wrongRun >= MATH_JAM && this.cfg.kind !== 'scout') this.jam();
+        if (this.wrongRun >= MATH_JAM && this.cfg.kind !== 'scout' && !this.practice) this.jam();
       } else { Sfx.key(); this.redrawLabel(v); }
     }
     // Shows the right answer on the enemy for a second. Then it is typed again, which doesn't count either way.
@@ -1565,11 +2015,18 @@
       this.redrawLabel(v);
       this.time.delayedCall(1000, () => { if (!v.removed) { v.reveal = false; this.redrawLabel(v); } });
     }
-    // Records the first answer to an enemy's fact. Typing it again after a miss never counts.
+    // Records the first answer to an enemy's fact. Typing it again after a miss never counts, and neither does the
+    // turnaround behind a shield or anything in practice.
     mathAnswer(v, ok, rt) {
       if (v.tried) return;
       v.tried = true;
       const mh = this.mh, p = this.profile, k = v.fact.key, scout = this.cfg.kind === 'scout';
+      if (v.fact.extra) return;
+      if (this.practice) {
+        if (!ok) { mh.misses[k] = (mh.misses[k] || 0) + 1; mh.retry.push({ key: k, at: this.spawned + 2 }); }
+        return;
+      }
+      if (v.fact.missing) rt = Math.round(rt / 1.5);   // a hidden number takes a little longer to think through
       const f = MX.fact(p, k);
       if (!(k in mh.start)) mh.start[k] = f.lvl;
       const { before, after } = MX.record(f, ok, rt, MX.dayNum(), scout);
@@ -1580,7 +2037,19 @@
         this.correct++; this.mathGoal();
       } else {
         this.wrong++; mh.misses[k] = (mh.misses[k] || 0) + 1;
-        if (!scout) mh.retry.push({ key: k, at: this.spawned + 2 });
+        if (!scout) {
+          mh.retry.push({ key: k, at: this.spawned + 2 });
+          mh.waveMissed.push(k); this.waveWrong++;
+          // too many misses in one wave: the Mega Mutant comes at the end, carrying exactly those facts
+          if (!this.mutantDue && this.waveWrong >= MATH_MUTANT && TYPES.mutant && !v.T.mutant) {
+            this.mutantDue = true;
+            this.time.delayedCall(900, () => {
+              if (this.state !== 'playing' || this.mutantSpawned) return;
+              this.banner('A Mutant is coming...', 170);
+              this.floatText(640, 250, 'It will carry the facts you missed', '#9be15d', 22);
+            });
+          }
+        }
       }
       if (scout) {
         mh.scout.results.push({ key: k, ok, ms: rt });
@@ -1589,14 +2058,20 @@
       } else if (after > before && after >= 2) {
         this.floatText(v.x, this.hitY(v) - 120, `${MX.LEVELS[after].name}!`, '#' + MX.LEVELS[after].color.toString(16).padStart(6, '0'), 20);
       }
-      if (!scout) MX.updateOpen(p).forEach(s => {
-        mh.opened.push(s);
-        this.time.delayedCall(700, () => { this.banner(`The ${s.name} is open!`, 260); if (!Music.sting('reward-unlocked')) Sfx.big(); });
-      });
+      if (!scout) {
+        MX.updateOpen(p).forEach(s => {
+          mh.opened.push(s);
+          this.time.delayedCall(700, () => { this.banner(`The ${s.name} is open!`, 260); if (!Music.sting('reward-unlocked')) Sfx.big(); });
+        });
+        MX.updateMastery(p).forEach(s => {
+          mh.stamped = (mh.stamped || []).concat(s);
+          this.time.delayedCall(1100, () => { this.banner(`${s.name} Mastered!`, 260, 'A gold stamp for the map!'); Sfx.big(); });
+        });
+      }
     }
     mathGoal() {
       const d = this.mathToday();
-      if (d.goal || d.right < MX.DAILY_GOAL) return;
+      if (d.goal || d.right < MX.goal(this.profile)) return;
       d.goal = true;
       this.addCoins(50);
       this.banner('Daily math goal!', 150);
@@ -1621,13 +2096,14 @@
         note = `${known ? `You already know ${known} fact${known === 1 ? '' : 's'}!` : 'Now I know where to start.'} Your hunt goes to the ${MX.stage(mh.stage).name}.` +
           (opened.length ? `\nOpened: ${opened.map(s => `the ${s.name}`).join(' and ')}.` : '');
       }
+      if (this.practice) note = '';
       mh.wave = { n: 0, right: 0 };
       return note;
     }
     // The end of the planned waves: what moved up, how close the next place is, coins and the daily goal.
     mathResults(note) {
       this.state = 'mathdone';
-      const mh = this.mh, p = this.profile, S = MX.stage(mh.stage), pg = MX.progress(p, S.id), st = mh.stats, today = this.mathToday();
+      const mh = this.mh, p = this.profile, S = MX.stage(mh.stage), pg = MX.progress(p, S.id), st = mh.stats, today = this.mathToday(), G = MX.goal(p);
       if (!Music.sting('reward-unlocked')) Sfx.big();
       const ups = Object.keys(mh.start).filter(k => MX.level(p, k) > mh.start[k] && MX.level(p, k) >= 2)
         .sort((a, b) => MX.level(p, b) - MX.level(p, a));
@@ -1646,7 +2122,7 @@
         body: (note ? note + '\n\n' : '') +
           `Facts answered: ${st.n}   ·   Right first try: ${acc}%   ·   Under 3 seconds: ${st.fast}\n` +
           upLine + '\n' + stageLine + '\n\n' +
-          `Coins earned: ${this.coinsEarned}   ·   Daily math goal: ${Math.min(today.right, MX.DAILY_GOAL)} of ${MX.DAILY_GOAL}${today.right >= MX.DAILY_GOAL ? ' (done!)' : ''}`,
+          `Coins earned: ${this.coinsEarned}   ·   Daily math goal: ${Math.min(today.right, G)} of ${G}${today.right >= G ? ' (done!)' : ''}`,
         footer: 'SPACE for bonus waves   ·   ESC back to the math menu',
       });
       this.recordGame();
@@ -1665,6 +2141,7 @@
       const slow = Phaser.Math.Clamp((avg - 500) / 1500, 0, 1);
       return 1 + missRate * 5 + slow * 1.5;
     }
+    weakKeysFor(p, n) { const cur = this.profile; this.profile = p; const out = this.weakKeys(n); this.profile = cur; return out; }
     weakKeys(n) {
       if (!this.profile) return [];
       return Object.entries(this.profile.keyStats)
@@ -1758,18 +2235,21 @@
       Object.assign(this, { wrongRun: 0, waveWrong: 0, waveLost: 0, mutantDue: false, mutantSpawned: false });
       this.unjam(true);
       this.waveKeys0 = [this.correct, this.wrong];   // for this wave's own accuracy
-      if (this.modeKey === 'math') {   // each math place keeps its own setting; bonus waves visit the open ones
-        const open = MX.openStages(this.profile).map(s => s.track), prev = this.battleMusic;
-        this.battleMusic = this.mathKind(this.wave) === 'bonus' ? Phaser.Utils.Array.GetRandom(open.length > 1 ? open.filter(t => t !== prev) : open) : MX.stage(this.mh.stage).track;
-        this.nextMusic = this.battleMusic;
-        this.mh.wave = { n: 0, right: 0 };
+      let sceneId = null;
+      if (this.modeKey === 'math') {   // each math place keeps its own setting; bonus and mixed waves visit the open ones
+        const kind = this.mathKind(this.wave), open = MX.openStages(this.profile), prev = this.mh.place;
+        const S = kind === 'bonus' || kind === 'mixed' ? Phaser.Utils.Array.GetRandom(open.length > 1 ? open.filter(t => t.id !== prev) : open) : MX.stage(this.mh.stage);
+        this.mh.place = S.id;
+        this.battleMusic = this.nextMusic = S.track;
+        sceneId = S.scene;
+        this.mh.wave = { n: 0, right: 0 }; this.mh.waveMissed = [];
       } else {
         this.battleMusic = this.nextMusic || pickBattle(this.modeKey, this.wave, this.battleMusic);
         this.nextMusic = pickBattle(this.modeKey, this.wave + 1, this.battleMusic);
       }
       Music.want(this.battleMusic);
       Music.prefetch(this.nextMusic);
-      const moving = this.sceneTransition(TRACK_SCENE[this.battleMusic]);
+      const moving = this.sceneTransition(sceneId || TRACK_SCENE[this.battleMusic]);
       this.spawnClock = moving ? 1900 : 500;   // nobody spawns until the hunter has landed
       this.time.delayedCall(moving ? 1000 : 0, () => this.banner('Wave ' + this.wave));
     }
@@ -1911,12 +2391,16 @@
         if (this.modeKey === 'math') {
           const st = this.mh.stats, acc = st.n ? Math.round(st.right / st.n * 100) : 100, today = this.mathToday();
           const tricky = Object.entries(this.mh.misses).sort((a, b) => b[1] - a[1]).slice(0, 3);
+          const mixed = this.mh.mode === 'mixed', prog = this.profile.modes.math || (this.profile.modes.math = {});
+          const bestMixed = mixed && this.wave > (prog.bestMixed || 0);
+          if (bestMixed) { prog.bestMixed = this.wave; this.saveProfile(); }
           this.showPanel({
-            y: 300, h: 380 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
+            y: 300, h: 380 + (sessionLine ? 60 : 0) + (mixed ? 30 : 0), title: 'The vampires got you!',
             body: sessionLine + `Score ${this.score.toLocaleString()}${isBest ? '   (new best!)' : ''}\n` +
+                  (mixed ? `Mixed Review: you reached wave ${this.wave}${bestMixed ? '   (your best!)' : ''}\n` : '') +
                   `Facts answered: ${st.n}   ·   Right first try: ${acc}%   ·   Under 3 seconds: ${st.fast}\n\n` +
                   (tricky.length ? `Facts to practice: ${tricky.map(([k]) => MX.label(k)).join('    ')}` : 'No missed facts. Sharp shooting!') +
-                  `\nCoins earned: ${this.coinsEarned}   ·   Daily math goal: ${Math.min(today.right, MX.DAILY_GOAL)} of ${MX.DAILY_GOAL}`,
+                  `\nCoins earned: ${this.coinsEarned}   ·   Daily math goal: ${Math.min(today.right, MX.goal(this.profile))} of ${MX.goal(this.profile)}`,
             footer: 'Press SPACE to continue',
           });
           this.time.delayedCall(900, () => { this.overReady = true; });
@@ -1937,6 +2421,7 @@
 
     // ---------- Input ----------
     onKey(e) {
+      if (this.state === 'grownups') return;   // the grown-ups page handles its own keys
       Sfx.init();
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const k = e.key;
@@ -1945,6 +2430,7 @@
         case 'profiles':
           if (/^[1-4]$/.test(k)) this.pickProfile(+k - 1);
           else if (k === 'n' || k === 'N') this.startNaming();
+          else if (k === 'g' || k === 'G') this.openGrownups();
           return;
         case 'naming':
           if (k === 'Escape') this.showProfiles();
@@ -1989,6 +2475,8 @@
           const s = /^[1-9]$/.test(k) && MX.STAGES[+k - 1];
           if (k === 'Escape') this.showModes();
           else if (k === ' ' || k === 'Enter') this.startMath(MX.smartStage(this.profile));
+          else if (k === 'r' || k === 'R') this.startMath(MX.smartStage(this.profile), 'mixed');
+          else if (k === 'p' || k === 'P') this.startMath(MX.smartStage(this.profile), 'practice');
           else if (s) { if (s.id <= MX.ensure(this.profile).open) this.startMath(s.id); else this.mathLocked(s); }
           return;
         }
@@ -2199,8 +2687,8 @@
       let fact = null;
       if (this.modeKey === 'math') {   // math enemies carry a fact; the "word" is its answer
         fact = wordIn && typeof wordIn === 'object' ? wordIn : this.mathFact(this.cfg.kind);
+        if (!type) { const job = this.mathJob(fact); type = job.type; if (job.queue) queue = job.queue; }
         wordIn = String(fact.ans);
-        type = type || this.mathType(fact);
       }
       const word = wordIn || this.pickWord();
       type = type || this.pickType(word);
@@ -2218,6 +2706,10 @@
       v.spr = this.add.sprite(v.x, y, T.sheet, 0).setOrigin(T.ox, T.oy).setScale(sc).setDepth(y);
       if (T.tint) v.spr.setTint(T.tint);
       if (T.alpha) v.spr.setAlpha(T.alpha);
+      if (T.aura) {   // a pulsing glow behind the castle's final boss
+        v.aura = this.add.ellipse(v.x, y - T.h * 0.45, 200, T.h * 1.05, T.aura, 0.2).setDepth(y - 2);
+        this.tweens.add({ targets: v.aura, alpha: 0.05, scaleX: 1.15, scaleY: 1.08, duration: 700, yoyo: true, repeat: -1 });
+      }
       if (T.anim) v.spr.play({ key: T.anim, startFrame: Phaser.Math.Between(0, 5) });
       if (T.flap) this.tweens.add({ targets: v.spr, scaleY: { from: sc, to: sc * 0.68 }, duration: 130, yoyo: true, repeat: -1 });
       if (T.ghost) this.tweens.add({ targets: v.spr, alpha: { from: 0.85, to: 0.4 }, duration: 900, yoyo: true, repeat: -1 });
@@ -2238,13 +2730,16 @@
     spawnBoss() {
       let type = BOSS_FOR_SCENE[this.sceneId];
       if (!TYPES[type] || !this.textures.exists(TYPES[type].sheet)) type = 'count';
-      if (this.modeKey === 'math') {   // a queue of this place's facts, no repeats
+      if (this.modeKey === 'math') {   // the place's own boss, carrying a queue of its facts with no repeats
+        const S = MX.stage(this.mh.place || this.mh.stage);
+        if (TYPES[S.boss] && this.textures.exists(TYPES[S.boss].sheet)) type = S.boss;
         const avoid = new Set(), facts = [];
-        for (let i = 0; i < BOSS_FACTS; i++) {
-          const k = MX.pick(this.profile, { kind: 'boss', stage: this.mh.stage, avoid, today: MX.dayNum() });
+        for (let i = 0; i < (type === 'kingcount' ? 10 : BOSS_FACTS); i++) {
+          const k = MX.pick(this.profile, { kind: 'boss', stage: S.id, avoid, today: MX.dayNum() });
           avoid.add(k); facts.push(this.makeFact(k));
         }
         const v = this.spawnVamp(type, facts.shift(), facts);
+        v.mathStage = S.id;
         this.banner(TYPES[type].name + '!');
         this.burst(v.x, this.hitY(v), 30, 1.3);
         Sfx.tone(110, 0.6, 'sawtooth', 0.06, 70); Sfx.tone(165, 0.6, 'sawtooth', 0.04, 100, 0.15);
@@ -2263,6 +2758,19 @@
     }
     spawnMutant() {
       this.mutantSpawned = true;
+      if (this.modeKey === 'math') {   // it carries the facts missed this wave, so the penalty is the practice they need
+        const facts = [...new Set(this.mh.waveMissed)].slice(0, MATH_MUTANT).map(k => this.makeFact(k));
+        const v = this.spawnVamp('mutant', facts.shift(), facts, { x: W - 300 });
+        v.unit = 'fact'; this.redrawLabel(v);
+        this.banner('MEGA MUTANT!');
+        this.burst(v.x, this.hitY(v), 40, 1.8);
+        this.cameras.main.shake(400, 0.012);
+        Sfx.growl();
+        this.bossCast(v, 1500);
+        this.floatText(640, 250, 'It carries the facts you missed. Get them right!', '#9be15d', 24);
+        Music.want('boss-fight');
+        return;
+      }
       const words = this.mutantPhrases();
       const v = this.spawnVamp('mutant', words.shift(), words, { x: W - 300 });
       v.unit = [...ALPHA].every(c => this.cfg.keys.includes(c)) ? 'sentence' : 'phrase';
@@ -2303,10 +2811,17 @@
       let total;
       if (v.fact) {   // "7 × 8 = " then what has been typed, a ? while waiting, or the answer in red after a miss
         const ans = v.reveal ? String(v.fact.ans) : v.buf || '?';
-        v.tRest.setText(`${v.fact.a} × ${v.fact.b} = `);
         v.tDone.setText(ans).setColor(v.reveal ? '#ff9b9b' : v.buf ? '#ffcf5a' : '#8f7fb8');
-        total = v.tRest.width + v.tDone.width;
-        v.tRest.setX(-total / 2); v.tDone.setX(-total / 2 + v.tRest.width);
+        if (v.fact.missing) {   // a ghost hides the first number: "? × 6 = 42"
+          v.tRest.setText(` × ${v.fact.b} = ${v.fact.prod}`);
+          total = v.tRest.width + v.tDone.width;
+          v.tDone.setX(-total / 2); v.tRest.setX(-total / 2 + v.tDone.width);
+        } else {
+          v.tRest.setText(`${v.fact.a} × ${v.fact.b} = `);
+          total = v.tRest.width + v.tDone.width;
+          v.tRest.setX(-total / 2); v.tDone.setX(-total / 2 + v.tRest.width);
+        }
+        this.drawHint(v);
       } else {
         const done = v.display.slice(0, v.typed), rest = v.display.slice(v.typed);
         v.tDone.setText(done); v.tRest.setText(rest);
@@ -2338,7 +2853,8 @@
     removeVamp(v) {
       v.removed = true;
       this.tweens.killTweensOf(v.spr);
-      [v.spr, v.shadow, v.label].forEach(o => o && o.active && o.destroy());
+      if (v.aura) this.tweens.killTweensOf(v.aura);
+      [v.spr, v.shadow, v.label, v.aura].forEach(o => o && o.active && o.destroy());
     }
 
     // Pace adapts to the player: stop vampires far away and they come faster; get bitten and they slow down.
@@ -2414,7 +2930,8 @@
       }
       v.spr.setTintFill(0xffffff);
       this.time.delayedCall(90, () => v.spr.active && (T.tint ? v.spr.setTint(T.tint) : v.spr.clearTint()));
-      const knock = T.trick === 'charge' ? 110 : T.mutant ? 90 : 50;
+      const knock = T.trick === 'charge' || T.trick === 'shell' ? 110 : T.mutant ? 90 : 50;
+      if (T.trick === 'shell') this.bossCast(v, 600);   // the Beetle Baron spins in his shell
       v.x = Math.min(SPAWN_X - 60, v.x + knock);   // a small knock back; he walks faster to make up for it
       if (T.trick === 'bats' || T.trick === 'minions') this.bossCast(v, 700);
       if (T.trick === 'blink') this.blink(v);
@@ -2437,7 +2954,10 @@
       this.scorePop(v.x, y, gain);
       if (v.boss) {
         if (v.T.mutant) this.mutants++;
-        else if (!this.practice) this.profile.ach.bossKills++;
+        else if (!this.practice) {
+          this.profile.ach.bossKills++;
+          if (v.mathStage) MX.ensure(this.profile).bosses[v.mathStage] = true;   // for the grown-ups page
+        }
         this.checkUnlocks(); this.banner(v.T.flees || 'Boss beaten!');
         if (!Music.sting('wave-cleared')) Sfx.fanfare();
         Music.want(this.battleMusic || 'battle-loop');
@@ -2464,8 +2984,8 @@
     vampAttack(v) {
       if (this.target === v) this.target = null;
       if (v.fact && !v.tried) this.mathAnswer(v, false, 0);
-      if (v.fact && this.cfg.kind === 'scout') {   // scouts just leave
-        v.dead = true; this.floatText(v.x, this.hitY(v) - 90, `${v.fact.a} × ${v.fact.b} = ${v.fact.ans}`, '#ff9b9b', 22);
+      if (v.fact && !v.boss && (this.cfg.kind === 'scout' || this.practice)) {   // scouts and practice enemies just leave
+        v.dead = true; this.floatText(v.x, this.hitY(v) - 90, this.factText(v.fact), '#ff9b9b', 22);
         this.batAway(v, 1);
         return;
       }
@@ -2542,6 +3062,7 @@
         const sy = v.T.flying ? v.y - 95 + Math.sin(v.walk * 0.7) * 14 : v.y;
         v.spr.setPosition(v.x, sy);
         v.shadow.setPosition(v.x, v.y);
+        if (v.aura) v.aura.setPosition(v.x, v.y - v.T.h * 0.45);
         const shake = time < v.shakeUntil ? Math.sin(time * 0.09) * 6 : 0;
         const half = (v.labelW || 80) / 2;
         v.label.setPosition(Phaser.Math.Clamp(v.x, half + 6, W - half - 6) + shake, v.y - this.labelUp(v));   // long labels stay on screen

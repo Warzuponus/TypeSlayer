@@ -17,7 +17,7 @@
   const LONG_REVIEW = 21;                // a Mastered fact that stays Mastered waits 3 weeks
   const MASTER_DAYS = 3;                 // Fluent on this many different days makes a fact Mastered
   const GATE = 0.8;                      // a stage opens when 80% of the one before it is Known
-  const DAILY_GOAL = 60;                 // facts answered right in a day
+  const DAILY_GOAL = 60;                 // facts answered right in a day (grown-ups can change it)
   const MAX_LEARNING = 4;                // no new facts while this many are still being learned
   const RULE_TABLES = [1, 10];           // taught as a rule ("any number times 1 is itself"), not fact by fact
 
@@ -26,11 +26,19 @@
   const isRule = k => parse(k).some(n => RULE_TABLES.includes(n));
 
   // Stages follow the order schools use: easy anchors first, then each table that can be built from them.
-  // Phase 1 has the first three. Each one is a setting with its own battle track and boss.
+  // Each one is a setting with its own battle track and boss. Every table finished makes the next one smaller,
+  // so the ×8 stage has just one new fact (8 × 8). The castle at the end has no new facts: it mixes all 55.
   const STAGES = [
-    { id: 1, name: 'Graveyard', tables: [1, 10, 2], label: '×1, ×10 and ×2', scene: 'graveyard', track: 'battle-loop', tip: 'Doubles: 2 × 7 is 7 + 7.' },
-    { id: 2, name: 'Garden', tables: [5], label: '×5', scene: 'garden', track: 'battle-moonlight-waltz', tip: 'Fives are half of tens: 5 × 8 is half of 80.' },
-    { id: 3, name: 'Bat Cave', tables: [4], label: '×4', scene: 'cave', track: 'battle-bat-cave-bounce', tip: 'Fours are double the doubles: 4 × 7 is 14 + 14.' },
+    { id: 1, name: 'Graveyard', tables: [1, 10, 2], label: '×1, ×10 and ×2', scene: 'graveyard', track: 'battle-loop', boss: 'count', tip: 'Doubles: 2 × 7 is 7 + 7.' },
+    { id: 2, name: 'Garden', tables: [5], label: '×5', scene: 'garden', track: 'battle-moonlight-waltz', boss: 'count', tip: 'Fives are half of tens: 5 × 8 is half of 80.' },
+    { id: 3, name: 'Bat Cave', tables: [4], label: '×4', scene: 'cave', track: 'battle-bat-cave-bounce', boss: 'batqueen', tip: 'Fours are double the doubles: 4 × 7 is 14 + 14.' },
+    { id: 4, name: 'Dark Forest', tables: [3], label: '×3', scene: 'forest', track: 'battle-forest-creep', boss: 'werewolf', tip: 'Threes: double it, then add one more. 3 × 7 is 14 + 7.' },
+    { id: 5, name: 'Crypt', tables: [9], label: '×9', scene: 'crypt', track: 'battle-crypt-groove', boss: 'pharaoh', tip: 'Nines: ten of them, take one away. 9 × 7 is 70 − 7.' },
+    { id: 6, name: 'Courtyard', tables: [6], label: '×6', scene: 'courtyard', track: 'battle-courtyard-march', boss: 'beetle', tip: 'Sixes: five of them, plus one more. 6 × 7 is 35 + 7.' },
+    { id: 7, name: 'Rooftops', tables: [7], label: '×7', scene: 'rooftops', track: 'battle-rooftop-chase', boss: 'ghostknight', tip: '5, 6, 7, 8: 56 is 7 × 8. And 7 × 7 is 49.' },
+    { id: 8, name: 'Spider Tower', tables: [8], label: '×8', scene: 'tower', track: 'battle-bat-cave-bounce', boss: 'weaver', tip: 'Eights: double, double, double. 8 × 8 is 16, 32, 64.' },
+    { id: 9, name: 'Castle', tables: [], label: 'every fact', scene: 'castle', track: 'battle-courtyard-march', boss: 'kingcount', final: true,
+      tip: 'The castle mixes every fact from 1 × 1 to 10 × 10. Count Moonfang is waiting!' },
   ];
   // Which facts are new in each stage (a turnaround learned earlier doesn't count again), and the lessons that teach them.
   (function buildStages() {
@@ -52,9 +60,13 @@
         }
       });
     });
+    // the facts a stage drills and counts for its progress: its own new ones, or all of them in the castle
+    const all = [...seen];
+    STAGES.forEach(s => { s.pool = s.final ? all : s.facts; });
   })();
   const STAGE_OF = {};
   STAGES.forEach(s => s.facts.forEach(k => { STAGE_OF[k] = s.id; }));
+  const ALL_FACTS = STAGES[STAGES.length - 1].pool;
   const stage = id => STAGES.find(s => s.id === id) || STAGES[0];
 
   // Days are counted on the device's own calendar, so "tomorrow" means after midnight where the kid lives.
@@ -69,6 +81,8 @@
     m.open = Math.max(1, m.open || 1);
     m.placed = !!m.placed;
     m.mastered = m.mastered || {};
+    m.bosses = m.bosses || {};
+    m.settings = Object.assign({ goal: DAILY_GOAL, cap: 0, pace: 1, hints: true }, m.settings || {});
     return m;
   }
   function fact(p, k) {
@@ -110,18 +124,25 @@
     lesson.facts.forEach(k => { const f = fact(p, k); if (f.lvl === 0) { f.lvl = 1; f.due = today; f.last = today; } });
   }
 
+  const goal = p => ensure(p).settings.goal || DAILY_GOAL;
   function progress(p, id) {
     const s = stage(id), n = [0, 0, 0, 0, 0];
-    s.facts.forEach(k => n[level(p, k)]++);
+    s.pool.forEach(k => n[level(p, k)]++);
     const known = n[2] + n[3] + n[4];
-    return { total: s.facts.length, counts: n, met: s.facts.length - n[0], known, fluent: n[3] + n[4], mastered: n[4], pct: known / s.facts.length };
+    return { total: s.pool.length, counts: n, met: s.pool.length - n[0], known, fluent: n[3] + n[4], mastered: n[4], pct: known / s.pool.length };
   }
   // Opens every stage whose stage before it is 80% Known. Stages never close again. Returns the newly opened ones.
   function updateOpen(p) {
     const m = ensure(p), opened = [];
     while (m.open < STAGES.length && progress(p, m.open).pct >= GATE) { m.open++; opened.push(stage(m.open)); }
-    STAGES.forEach(s => { if (!m.mastered[s.id] && s.facts.every(k => level(p, k) === 4)) m.mastered[s.id] = true; });
     return opened;
+  }
+  // A stage earns its gold stamp when every fact in it is Mastered (Fluent on 3 different days). Stamps stay.
+  // Returns the stages stamped just now.
+  function updateMastery(p) {
+    const m = ensure(p), out = [];
+    STAGES.forEach(s => { if (!m.mastered[s.id] && s.pool.every(k => level(p, k) === 4)) { m.mastered[s.id] = true; out.push(s); } });
+    return out;
   }
   const openStages = p => STAGES.filter(s => s.id <= ensure(p).open);
   const unlockedFacts = p => openStages(p).flatMap(s => s.facts);
@@ -174,7 +195,7 @@
     const all = unlockedFacts(p);
     const lv = k => (F[k] || { lvl: 0 }).lvl;
     const fresh = list => { const c = list.filter(k => !avoid.has(k)); return c.length ? c : list; };
-    const inStage = k => STAGE_OF[k] === ctx.stage;
+    const pool = new Set(stage(ctx.stage).pool), inStage = k => pool.has(k);
     const met = all.filter(k => lv(k) >= 1);
     const learning = met.filter(k => lv(k) === 1 && !isRule(k));
     const known = met.filter(k => lv(k) >= 2);
@@ -199,18 +220,22 @@
         else if (due.length && rnd() < 0.65) k = from(due, x => 2 * weakness(F[x]) * easy(x));
         else k = from(known, knownW);
         break;
-      case 'boss':
-        k = from(met.filter(inStage), x => weakness(F[x]) * easy(x));
+      case 'boss': {   // the boss carries its place's tables: the Countess Weaver brings 8s from 8 × 1 to 8 × 10
+        const T = stage(ctx.stage).tables, ofTable = x => inStage(x) || parse(x).some(n => T.includes(n));
+        k = from(met.filter(ofTable), x => weakness(F[x]) * easy(x) * (inStage(x) ? 1.5 : 1));
         break;
+      }
       case 'rule':
         k = from(met.filter(isRule), () => 1) || from(stage(1).facts.filter(isRule), () => 1);
         break;
       default:   // bonus
         k = from(met, x => weakness(F[x]) * easy(x) * (lv(x) === 1 ? 2 : 1));
     }
-    if (!k) k = from(met, () => 1) || from(stage(ctx.stage).facts, () => 1);
+    if (!k) k = from(met, () => 1) || from(stage(ctx.stage).pool, () => 1);
     return k;
   }
+  // Facts a kid can practice in Mixed Review and practice mode: every fact met so far, or the first stage's if none yet.
+  const practiceFacts = p => { const met = unlockedFacts(p).filter(k => level(p, k) >= 1); return met.length ? met : stage(1).facts; };
 
   // The placement round: a couple of facts from every table, easy to hard. A quick right answer marks a fact as
   // already Fluent, so a kid never redoes facts they know.
@@ -241,6 +266,26 @@
   }
   const label = k => { const [a, b] = parse(k); return `${b} × ${a}`; };
 
+  // A strategy for a fact, shown under hint pictures and on the grown-ups page. Uses the easiest table in the fact.
+  function hint(k) {
+    const [lo, hi] = parse(k);
+    const T = [1, 10, 2, 5, 4, 3, 9, 6].find(t => t === lo || t === hi);
+    const o = T === lo ? hi : lo;
+    switch (T) {
+      case 1: return `Times 1 stays the same: ${o}`;
+      case 10: return `Times 10: put a 0 on the end, ${o}0`;
+      case 2: return `Double ${o}: ${o} + ${o}`;
+      case 5: return `Half of ${o}0`;
+      case 4: return `Double, then double again: ${o * 2}, ${o * 4}`;
+      case 3: return `Double ${o}, then one more ${o}: ${o * 2} + ${o}`;
+      case 9: return `Ten ${o}s take away one ${o}: ${o * 10} − ${o}`;
+      case 6: return `Five ${o}s, then one more ${o}: ${o * 5} + ${o}`;
+    }
+    if (lo === 7 && hi === 7) return 'Seven 7s make 49';
+    if (lo === 7) return '5, 6, 7, 8: 56 = 7 × 8';
+    return 'Double, double, double: 16, 32, 64';
+  }
+
   // One day's log: answers, right answers, fluent answers and the time per table, for the parent page later.
   function logDay(p, dateKey, k, ok, ms) {
     const d = ensure(p).days[dateKey] || (ensure(p).days[dateKey] = { n: 0, right: 0, fast: 0, t: {} });
@@ -252,8 +297,9 @@
   }
 
   root.VH_MATH = {
-    FAST_MS, OK_MS, LEVELS, STAGES, GATE, DAILY_GOAL, MAX_LEARNING, STAGE_OF,
-    key, parse, isRule, stage, dayNum, ensure, fact, level, record, introduce, progress, updateOpen, openStages,
+    FAST_MS, OK_MS, LEVELS, STAGES, GATE, DAILY_GOAL, MAX_LEARNING, STAGE_OF, ALL_FACTS,
+    key, parse, isRule, stage, dayNum, ensure, fact, level, record, introduce, progress, updateOpen, updateMastery, openStages, goal,
     learningLoad, nextLesson, huntLesson, canLearn, smartStage, weakness, pick, scoutList, finishScout, weakFacts, label, logDay,
+    practiceFacts, hint,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

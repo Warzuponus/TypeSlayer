@@ -8,9 +8,11 @@ const test = (name, fn) => { fn(); n++; console.log('ok', name); };
 const fresh = () => ({ name: 'T' });
 const T0 = 20000;
 
-test('stages hold 27, 7 and 6 new facts', () => {
-  assert.deepStrictEqual(M.STAGES.map(s => s.facts.length), [27, 7, 6]);
-  assert.strictEqual(new Set(M.STAGES.flatMap(s => s.facts)).size, 40);
+test('nine stages share out all 55 facts, and the castle mixes them all', () => {
+  assert.deepStrictEqual(M.STAGES.map(s => s.facts.length), [27, 7, 6, 5, 4, 3, 2, 1, 0]);
+  assert.strictEqual(new Set(M.STAGES.flatMap(s => s.facts)).size, 55);
+  assert.strictEqual(M.STAGES[8].pool.length, 55);
+  assert.strictEqual(M.STAGE_OF['8x8'], 8);
   assert.strictEqual(M.key(8, 7), '7x8');
   assert.deepStrictEqual(M.STAGES[0].lessons.map(l => l.facts.length), [10, 9, 2, 2, 2, 2]);
   assert.ok(M.STAGES[0].lessons[0].rule && M.STAGES[0].lessons[1].rule);
@@ -123,6 +125,38 @@ test('day log counts answers and time per table', () => {
   const d = M.logDay(p, '2026-11-19', '7x7', true, 4000);
   assert.deepStrictEqual([d.n, d.right, d.fast], [3, 2, 1]);
   assert.deepStrictEqual(d.t[7], [6000, 2]); assert.deepStrictEqual(d.t[2], [2000, 1]);
+});
+
+test('a stage gets its gold stamp once every fact in it is mastered', () => {
+  const p = fresh();
+  M.STAGES[1].facts.forEach(k => { M.fact(p, k).lvl = 4; });
+  assert.deepStrictEqual(M.updateMastery(p).map(s => s.id), [2]);
+  assert.deepStrictEqual(M.updateMastery(p), [], 'a stamp is only new once');
+  assert.ok(!M.ensure(p).mastered[9], 'the castle needs every fact');
+});
+
+test('the castle opens after the Spider Tower and drills every fact', () => {
+  const p = fresh();
+  M.STAGES.slice(0, 8).forEach(s => s.facts.forEach(k => { M.fact(p, k).lvl = 2; }));
+  M.updateOpen(p);
+  assert.strictEqual(M.ensure(p).open, 9);
+  assert.strictEqual(M.nextLesson(p, 9), null);
+  const seen = new Set();
+  for (let i = 0; i < 3000; i++) seen.add(M.pick(p, { kind: 'boss', stage: 9, today: T0 }));
+  assert.ok(seen.size > 40, 'castle boss facts come from every table: ' + seen.size);
+});
+
+test('grown-up settings change the daily goal', () => {
+  const p = fresh();
+  assert.strictEqual(M.goal(p), M.DAILY_GOAL);
+  M.ensure(p).settings.goal = 30;
+  assert.strictEqual(M.goal(p), 30);
+});
+
+test('every fact has a strategy hint', () => {
+  M.ALL_FACTS.forEach(k => assert.ok(M.hint(k).length > 5, k));
+  assert.strictEqual(M.hint('7x9'), 'Ten 7s take away one 7: 70 − 7');
+  assert.deepStrictEqual(M.practiceFacts(fresh()), M.STAGES[0].facts);
 });
 
 console.log(`\n${n} checks passed`);
