@@ -24,7 +24,7 @@ GitHub Pages works as is: serve the repository root from the default branch.
 - **Extra practice on weak keys.** It tracks a miss rate and speed for every key and serves the weak ones more often.
 - **No peeking.** The on-screen keyboard is covered in the real game, so kids learn where the keys are by feel.
 - **Practice mode** (press P on the hunt menu) shows the keyboard with finger colors and the next key lit up. It is always blue and earns nothing: no points, coins, unlocks, daily hunt time or best scores, and it doesn't change the weak-key stats.
-- **Capitals toggle.** Shift is required and coins pay 1.5x.
+- **Capitals toggle.** Shift is required and coins pay 1.5x. Best wave and best score are kept separately for Capitals on and off, and the hunt menu shows the record for whichever is switched on.
 - **Profiles** for each kid, saved in the browser on that device.
 - **Daily hunt** with a reward: 10 minutes of typing and 10 minutes of Math Hunt.
 - **Lots of enemies.** Fledglings, armored vampires, ghouls and bats, plus wolf pups (fast), little mummies (slow), see-through ghosts that drift in bursts, shield guards (type the shield word, then theirs) and giant bats that split into two letter bats.
@@ -98,7 +98,7 @@ Press **G** on the hunter screen. The first time, it asks for a 4-digit PIN, whi
 - The 5 facts to watch, each with a tip, and which places are open, Mastered and have had their boss beaten.
 - Getting faster: the average answer time per table for each of the last 4 weeks, with the 3-second line marked.
 - A practice log of typing and math minutes for the last 14 days, with the daily hunt and math goal days marked.
-- The typing key heat map, best speed and accuracy, and the best wave in each typing mode.
+- The typing key heat map, best speed and accuracy, and the best wave in each typing mode (with Capitals on and off).
 - Settings: the daily math goal, a cap on math minutes per day, how fast math enemies walk, hint pictures on or off, and changing the PIN.
 - **Copy report** puts a short text summary on the clipboard to paste into a message to a teacher.
 
