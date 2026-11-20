@@ -25,5 +25,9 @@
   "pharaoh": "0b3e8b22-4595-4549-b040-c882575240f3",
   "ghostknight": "f0d072ab-d101-4ddd-abc4-2939ff77f64e",
   "mutant": "14c235d2-1e3c-4a3a-a9ac-662b11123c61"
+ },
+ "math_bosses": {
+  "beetle": "37c2e942-d206-4ef3-aa31-cdd37c206c15",
+  "weaver": "62253141-b8ba-4f3c-b315-3b3f3a043da7"
  }
 }

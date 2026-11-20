@@ -15,13 +15,17 @@
    - Wrong keys cost points, jam the crossbow when they come in a row, and bring the Mega Mutant when there are too many in a wave.
 
 7. **Math Hunt, phase 1.** Times tables on the enemies, typed answers that fire on a match, a fact engine with five levels and spaced review, a scouting round, Smart Hunt, three places with their bosses, new-fact cards and a daily math goal.
+8. **Math Hunt, phases 2 and 3.**
+   - A grown-ups page behind a PIN: the fact grid, facts to watch, answer times by week, a practice log, the typing heat map, settings and a copyable report.
+   - All nine places on a map, from ×1 to the castle, with mastery stamps and two new bosses (the Beetle Baron and Countess Weaver), plus Count Moonfang's return.
+   - A math job for every enemy, hint pictures, Mixed Review, math practice, and the Mega Mutant carrying missed facts.
 
 ## Next
 
 ### Math Hunt
-- **Phase 2: a grown-ups page.** A grid of every fact colored by level, the slowest facts with tips, answer time per table over the last 4 weeks, a practice log, the typing key heat map, settings and a PIN. The data is already being saved.
-- **Phase 3: all the times tables.** Stages 4 to 9 (×3, ×9, ×6, ×7, ×8, then the castle), a map screen, mastery stamps, math jobs for every enemy, hint pictures in practice mode, and the Mega Mutant carrying missed facts. New art and music: two bosses, two settings, the map and four Suno tracks.
-- **Phase 4: beyond the tables.** Division by fact family, adding and subtracting, the 11s and 12s, and math rewards.
+- **New music from Suno.** A math menu theme, battle loops for the Spider Tower and the Castle, and a short Table Mastered fanfare. For now those places reuse the Bat Cave and Courtyard tracks, and the stamp plays the built-in fanfare.
+- **Reordering the places** from the grown-ups page, to match what the class is doing at school.
+- **Phase 4: beyond the tables.** Division by fact family, adding and subtracting, the 11s and 12s, giant bats that split a hard fact into two easier ones, and math rewards (The Professor hunter, a number bolt and the Times Table Champion outfit).
 
 ### Ship and test
 - Publish on GitHub Pages.
