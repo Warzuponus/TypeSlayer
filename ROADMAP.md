@@ -19,11 +19,11 @@
    - A grown-ups page behind a PIN: the fact grid, facts to watch, answer times by week, a practice log, the typing heat map, settings and a copyable report.
    - All nine places on a map, from ×1 to the castle, with mastery stamps and two new bosses (the Beetle Baron and Countess Weaver), plus Count Moonfang's return.
    - A math job for every enemy, hint pictures, Mixed Review, math practice, and the Mega Mutant carrying missed facts.
+9. **Math Hunt music.** Suno songs for the math menu, the Spider Tower, the Castle and Count Moonfang's return, plus a Table Mastered fanfare.
 
 ## Next
 
 ### Math Hunt
-- **New music from Suno.** A math menu theme, battle loops for the Spider Tower and the Castle, and a short Table Mastered fanfare. For now those places reuse the Bat Cave and Courtyard tracks, and the stamp plays the built-in fanfare.
 - **Reordering the places** from the grown-ups page, to match what the class is doing at school.
 - **Phase 4: beyond the tables.** Division by fact family, adding and subtracting, the 11s and 12s, giant bats that split a hard fact into two easier ones, and math rewards (The Professor hunter, a number bolt and the Times Table Champion outfit).
 

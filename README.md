@@ -84,6 +84,7 @@ Press **M** on the hunt menu. Each enemy carries a times-table problem like `7 �
   | 9 | Castle | All 55 mixed | Count Moonfang returns, bigger and glowing, with 10 facts |
 
   Every table finished makes the next one smaller, so the ×8 place only adds 8 × 8. Each place opens when 80% of the one before it is Known. Its ring on the map fills as facts become Known, and it gets a **gold stamp** when every fact in it is Mastered. Smart Hunt (SPACE on the math menu) picks the place to work on, and 1 to 9 pick one.
+- **Its own music:** the math menu plays Times Table Tick-Tock, the Spider Tower and the Castle have their own battle loops, Count Moonfang returns with his own boss song, and a gold stamp plays the Table Mastered fanfare.
 - **Mixed Review** (R) is endless waves of every fact met so far, a little faster each wave, with a boss every other wave. It opens after the first hunt.
 - **Math practice** (P) is blue like typing practice: every enemy shows its hint picture, nobody bites, and nothing counts.
 - **A daily math goal** of 60 facts answered right (grown-ups can change it) is worth 50 coins.
@@ -118,7 +119,7 @@ The fact engine is in `math.js` with no game code in it, so it can be checked wi
 | `mathart.js` | Math Hunt art: the Beetle Baron, Countess Weaver, the Spider Tower and Castle settings, the map and icons (copies in `art/math/`, made with `tools/gen_math_art.py` and `tools/build_math_art.py`) |
 | `music/` | The game's music (Suno), 128 kbps MP3, loops trimmed on the beat. `tracks.json` has the exact lengths |
 | `art/` | Source PNGs from Pixellab, plus `pixellab-character-ids.json` for regenerating or adding animations |
-| `tools/` | The Python scripts used to call the Pixellab API and pack the art into the `.js` files, plus `test_math.js` for the fact engine |
+| `tools/` | The Python scripts used to call the Pixellab API and pack the art into the `.js` files, `find_loop.py` and `cut_loop.py` for turning a Suno song into a seamless loop, plus `test_math.js` for the fact engine |
 
 Saves live in `localStorage` under `vh-save-v1`.
 

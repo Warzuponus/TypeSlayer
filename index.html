@@ -497,9 +497,9 @@
       'menu-candlelit-library': { loop: true, lazy: true, sec: 14.402 }, 'menu-pumpkin-patch-parade': { loop: true, lazy: true, sec: 38.638 },
       'menu-hunters-moon-overture': { loop: true, lazy: true, sec: 30.01 }, 'menu-midnight-carnival': { loop: true, lazy: true, sec: 32.675 },
       // Math Hunt: its own menu theme, the Spider Tower and Castle loops, Count Moonfang's return, and the Table Mastered fanfare
-      'menu-math-tick-tock': { loop: true, lazy: true, sec: 999 }, 'battle-spider-tower-creep': { loop: true, lazy: true, sec: 999 },
-      'battle-castle-hall-charge': { loop: true, lazy: true, sec: 999 }, 'boss-moonfang-returns': { loop: true, lazy: true, sec: 999 },
-      'table-mastered': { sec: 8 },
+      'menu-math-tick-tock': { loop: true, lazy: true, sec: 45.819 }, 'battle-spider-tower-creep': { loop: true, lazy: true, sec: 37.761 },
+      'battle-castle-hall-charge': { loop: true, lazy: true, sec: 52.774 }, 'boss-moonfang-returns': { loop: true, lazy: true, sec: 70.809 },
+      'table-mastered': { sec: 8.5 },
     },
     menuLast: null, menuTimer: null,
     menu(math) {   // play menu music; keeps a menu song that is already playing. The math menu has its own theme.
@@ -2165,7 +2165,7 @@
 
     // ---------- Flow ----------
     startGame(modeKey, wave = 1) {
-      this.menuPrep();
+      this.menuPrep(modeKey === 'math');   // math keeps its theme playing under the new-fact cards
       this.showKeyboard(!!this.practice);
       this.coverText(modeKey === 'math');
       this.hunter.setVisible(true); this.shadowH.setVisible(true);
