@@ -477,6 +477,7 @@
   const TRACK_SCENE = {
     'battle-loop': 'graveyard', 'battle-forest-creep': 'forest', 'battle-crypt-groove': 'crypt', 'battle-moonlight-waltz': 'garden',
     'battle-courtyard-march': 'courtyard', 'battle-bat-cave-bounce': 'cave', 'battle-rooftop-chase': 'rooftops',
+    'battle-spider-tower-creep': 'tower', 'battle-castle-hall-charge': 'castle',
   };
   const SCENES = Object.assign({
     graveyard: { img: 'graveyard', sky: true, ground: [0x16244a, 0x0b1130], tuft: [0x1c3a3c, 0x23484a, 0x15303a] },
@@ -495,9 +496,14 @@
       // menu songs, fetched when the menu picks one
       'menu-candlelit-library': { loop: true, lazy: true, sec: 14.402 }, 'menu-pumpkin-patch-parade': { loop: true, lazy: true, sec: 38.638 },
       'menu-hunters-moon-overture': { loop: true, lazy: true, sec: 30.01 }, 'menu-midnight-carnival': { loop: true, lazy: true, sec: 32.675 },
+      // Math Hunt: its own menu theme, the Spider Tower and Castle loops, Count Moonfang's return, and the Table Mastered fanfare
+      'menu-math-tick-tock': { loop: true, lazy: true, sec: 45.819 }, 'battle-spider-tower-creep': { loop: true, lazy: true, sec: 37.761 },
+      'battle-castle-hall-charge': { loop: true, lazy: true, sec: 52.774 }, 'boss-moonfang-returns': { loop: true, lazy: true, sec: 70.809 },
+      'table-mastered': { sec: 8.5 },
     },
     menuLast: null, menuTimer: null,
-    menu() {   // play menu music; keeps a menu song that is already playing
+    menu(math) {   // play menu music; keeps a menu song that is already playing. The math menu has its own theme.
+      if (math) { clearTimeout(this.menuTimer); this.want('menu-math-tick-tock'); return; }
       if (MENU_TRACKS.includes(this.wanted) && (this.curName === this.wanted || this.loading[this.wanted])) return;
       const pool = MENU_TRACKS.filter(t => t !== this.menuLast);
       const name = this.menuLast ? Phaser.Utils.Array.GetRandom(pool) : MENU_TRACKS[0];
@@ -1300,7 +1306,7 @@
       this.menu.push(g, z);
       return g;
     }
-    menuPrep() {
+    menuPrep(math) {
       this.state = 'menu';
       this.clearMenu();
       this.setHudVisible(false);
@@ -1309,7 +1315,7 @@
       this.vamps.forEach(v => this.removeVamp(v)); this.vamps = [];
       this.hunter.setVisible(false); this.shadowH.setVisible(false);
       this.coverText(false);
-      Music.menu();
+      Music.menu(math);
     }
 
     showProfiles() {
@@ -1620,7 +1626,7 @@
     mixedOpen() { const m = MX.ensure(this.profile); return m.placed && Object.values(m.facts).filter(f => f.lvl >= 1).length >= 10; }
     // The math menu: Smart Hunt, the map of all nine places, Mixed Review, practice, and today's goal.
     showMath() {
-      this.menuPrep();
+      this.menuPrep(true);
       this.state = 'mathmenu';
       this.practice = false;
       this.coverText(true);
@@ -2065,7 +2071,7 @@
         });
         MX.updateMastery(p).forEach(s => {
           mh.stamped = (mh.stamped || []).concat(s);
-          this.time.delayedCall(1100, () => { this.banner(`${s.name} Mastered!`, 260, 'A gold stamp for the map!'); Sfx.big(); });
+          this.time.delayedCall(1100, () => { this.banner(`${s.name} Mastered!`, 260, 'A gold stamp for the map!'); if (!Music.sting('table-mastered')) Sfx.big(); });
         });
       }
     }
@@ -2159,7 +2165,7 @@
 
     // ---------- Flow ----------
     startGame(modeKey, wave = 1) {
-      this.menuPrep();
+      this.menuPrep(modeKey === 'math');   // math keeps its theme playing under the new-fact cards
       this.showKeyboard(!!this.practice);
       this.coverText(modeKey === 'math');
       this.hunter.setVisible(true); this.shadowH.setVisible(true);
@@ -2241,6 +2247,7 @@
         const S = kind === 'bonus' || kind === 'mixed' ? Phaser.Utils.Array.GetRandom(open.length > 1 ? open.filter(t => t.id !== prev) : open) : MX.stage(this.mh.stage);
         this.mh.place = S.id;
         this.battleMusic = this.nextMusic = S.track;
+        if (S.final) this.nextMusic = 'boss-moonfang-returns';   // fetched now so Count Moonfang arrives with his own song
         sceneId = S.scene;
         this.mh.wave = { n: 0, right: 0 }; this.mh.waveMissed = [];
       } else {
@@ -2363,7 +2370,7 @@
       this.target = null;
       Sfx.lose();
       Music.stopCurrent();
-      this.time.delayedCall(1500, () => { if (this.state === 'over') Music.menu(); });
+      this.time.delayedCall(1500, () => { if (this.state === 'over') Music.menu(this.modeKey === 'math'); });
       this.vamps.forEach(v => { if (!v.dead) { v.dead = true; this.batAway(v, -1); } });
       const prog = this.profile.modes[this.modeKey] || {};
       const isBest = !this.practice && this.score > (prog.bestScore || 0);
@@ -2744,7 +2751,7 @@
         this.burst(v.x, this.hitY(v), 30, 1.3);
         Sfx.tone(110, 0.6, 'sawtooth', 0.06, 70); Sfx.tone(165, 0.6, 'sawtooth', 0.04, 100, 0.15);
         this.bossCast(v);
-        Music.want('boss-fight');
+        Music.want(type === 'kingcount' ? 'boss-moonfang-returns' : 'boss-fight');
         return;
       }
       const T = TYPES[type], words = Phaser.Utils.Array.Shuffle(this.cfg.boss.slice());

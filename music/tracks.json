@@ -78,5 +78,30 @@
   "loop": true,
   "seconds": 32.675,
   "samples_44100": 1440950
+ },
+ "menu-math-tick-tock": {
+  "loop": true,
+  "seconds": 45.819,
+  "samples_44100": 2020615
+ },
+ "battle-spider-tower-creep": {
+  "loop": true,
+  "seconds": 37.761,
+  "samples_44100": 1665273
+ },
+ "battle-castle-hall-charge": {
+  "loop": true,
+  "seconds": 52.774,
+  "samples_44100": 2327314
+ },
+ "boss-moonfang-returns": {
+  "loop": true,
+  "seconds": 70.809,
+  "samples_44100": 3122660
+ },
+ "table-mastered": {
+  "loop": false,
+  "seconds": 8.5,
+  "samples_44100": 374850
  }
 }
