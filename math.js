@@ -36,8 +36,8 @@
     { id: 5, name: 'Crypt', tables: [9], label: '×9', scene: 'crypt', track: 'battle-crypt-groove', boss: 'pharaoh', tip: 'Nines: ten of them, take one away. 9 × 7 is 70 − 7.' },
     { id: 6, name: 'Courtyard', tables: [6], label: '×6', scene: 'courtyard', track: 'battle-courtyard-march', boss: 'beetle', tip: 'Sixes: five of them, plus one more. 6 × 7 is 35 + 7.' },
     { id: 7, name: 'Rooftops', tables: [7], label: '×7', scene: 'rooftops', track: 'battle-rooftop-chase', boss: 'ghostknight', tip: '5, 6, 7, 8: 56 is 7 × 8. And 7 × 7 is 49.' },
-    { id: 8, name: 'Spider Tower', tables: [8], label: '×8', scene: 'tower', track: 'battle-bat-cave-bounce', boss: 'weaver', tip: 'Eights: double, double, double. 8 × 8 is 16, 32, 64.' },
-    { id: 9, name: 'Castle', tables: [], label: 'every fact', scene: 'castle', track: 'battle-courtyard-march', boss: 'kingcount', final: true,
+    { id: 8, name: 'Spider Tower', tables: [8], label: '×8', scene: 'tower', track: 'battle-spider-tower-creep', boss: 'weaver', tip: 'Eights: double, double, double. 8 × 8 is 16, 32, 64.' },
+    { id: 9, name: 'Castle', tables: [], label: 'every fact', scene: 'castle', track: 'battle-castle-hall-charge', boss: 'kingcount', final: true,
       tip: 'The castle mixes every fact from 1 × 1 to 10 × 10. Count Moonfang is waiting!' },
   ];
   // Which facts are new in each stage (a turnaround learned earlier doesn't count again), and the lessons that teach them.
