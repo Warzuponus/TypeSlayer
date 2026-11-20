@@ -367,6 +367,9 @@
   }
   const warmupMastered = (p, modeKey) => !!MODES[modeKey].skipTo && warmupClears(p, modeKey) >= MASTER_CLEARS;
   const autoStartWave = (p, modeKey) => warmupMastered(p, modeKey) ? MODES[modeKey].skipTo : 1;
+  // Best wave and best score are kept apart for Capitals on and off, so a tougher Capitals hunt never
+  // sits on the same record as a plain one. Plain records live on the mode's save; Capitals ones in prog.caps.
+  const bestRec = (prog, caps) => caps ? (prog.caps || (prog.caps = {})) : prog;
 
   function waveConfig(modeKey, n) {
     const M = MODES[modeKey];
@@ -831,7 +834,9 @@
         const acc = s.hit / (s.hit + s.miss);
         return acc >= 0.95 ? ['good', `${Math.round(acc * 100)}% right`] : acc >= 0.85 ? ['mid', `${Math.round(acc * 100)}% right`] : ['bad', `${Math.round(acc * 100)}% right`]; };
       const kb = rows.map((r, i) => `<div class="gu-kbrow" style="padding-left:${i * 14}px">` + [...r].map(k => { const [c, t] = cls(k); return `<span class="gu-k ${c}" title="${k.toUpperCase()}: ${t}">${k.toUpperCase()}</span>`; }).join('') + '</div>').join('');
-      const modes = MODE_ORDER.map(k => { const g = p.modes[k] || {}; return `<li><span>${MODES[k].name}</span><span>${g.bestWave ? 'best wave ' + g.bestWave : 'not tried yet'}</span></li>`; }).join('');
+      const modes = MODE_ORDER.map(k => { const g = p.modes[k] || {}, c = g.caps || {};
+        const best = [g.bestWave && 'best wave ' + g.bestWave, c.bestWave && 'with Capitals ' + c.bestWave].filter(Boolean).join(' · ');
+        return `<li><span>${MODES[k].name}</span><span>${best || 'not tried yet'}</span></li>`; }).join('');
       return `<div class="gu-kb">${kb}</div><div class="gu-legend"><span><i class="good"></i>95%+ right</span><span><i class="mid"></i>85 to 95%</span><span><i class="bad"></i>under 85%</span><span><i class="none"></i>too few presses</span></div>
         <p>Best speed: <b>${p.ach.bestWpm} words per minute</b> · best accuracy: <b>${p.ach.bestAcc}%</b> · tricky keys: <b>${this.scene.weakKeysFor(p, 4).map(k => k.toUpperCase()).join(' ') || 'none yet'}</b></p>
         <ul class="gu-map">${modes}</ul>`;
@@ -1408,7 +1413,7 @@
           ? `You finished today's hunt. Extra practice still makes you faster!`
           : `Today's hunt is 10 minutes of typing and 10 minutes of Math Hunt. ${dayParts(p)}.`);
       MODE_ORDER.forEach((key, i) => {
-        const M = MODES[key], prog = p.modes[key] || {};
+        const M = MODES[key], prog = p.modes[key] || {}, rec = (p.caps ? prog.caps : prog) || {};
         const y = 190 + i * 60, x = 520;
         this.card(x, y, 640, 52, () => this.pickMode(key), !pr && key === Store.data.lastMode, pr ? PRACTICE_EDGE : null);
         this.menu.push(
@@ -1417,8 +1422,8 @@
           this.txt(x - 258, y + 13, M.keysLabel, { fontSize: '14px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970),
           pr
             ? this.txt(x + 300, y, 'Practice\nkeyboard on', { fontSize: '15px', fontStyle: '600', color: PRACTICE_COLOR, align: 'right' }).setOrigin(1, 0.5).setDepth(2970)
-            : this.txt(x + 300, y, prog.bestWave ? `Best: wave ${prog.bestWave}\n${(prog.bestScore || 0).toLocaleString()} points` : 'Not tried yet',
-              { fontSize: '15px', fontStyle: '600', color: prog.bestWave ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
+            : this.txt(x + 300, y, rec.bestWave ? `Best${p.caps ? ' with Capitals' : ''}: wave ${rec.bestWave}\n${(rec.bestScore || 0).toLocaleString()} points` : p.caps ? 'Not tried with Capitals' : 'Not tried yet',
+              { fontSize: '15px', fontStyle: '600', color: rec.bestWave ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
         if (!pr && warmupMastered(p, key)) {
           const keysW = this.menu[this.menu.length - 2].width;
           this.menu.push(this.txt(x - 258 + keysW + 14, y + 13, `·  Warm-up mastered, starts at wave ${M.skipTo}`,
@@ -2270,7 +2275,8 @@
       let coins = 0, warmNote = '';
       if (!this.practice) {
         const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
-        prog.bestWave = Math.max(prog.bestWave || 0, this.wave);
+        const rec = bestRec(prog, this.caps);
+        rec.bestWave = Math.max(rec.bestWave || 0, this.wave);
         prog.pace = this.pace;
         coins = this.addCoins(10);
         warmNote = this.scoreWarmup(true);
@@ -2327,7 +2333,8 @@
     recordGame() {
       if (this.practice) return;   // practice never touches best scores, achievements or saved pace
       const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
-      prog.bestScore = Math.max(prog.bestScore || 0, this.score);
+      const rec = bestRec(prog, this.caps);
+      rec.bestScore = Math.max(rec.bestScore || 0, this.score);
       const a = this.profile.ach;
       if (this.modeKey !== 'math') {   // words per minute and accuracy unlocks stay about typing
         if (this.correct >= 40) a.bestWpm = Math.max(a.bestWpm, this.wpm());
@@ -2372,8 +2379,8 @@
       Music.stopCurrent();
       this.time.delayedCall(1500, () => { if (this.state === 'over') Music.menu(this.modeKey === 'math'); });
       this.vamps.forEach(v => { if (!v.dead) { v.dead = true; this.batAway(v, -1); } });
-      const prog = this.profile.modes[this.modeKey] || {};
-      const isBest = !this.practice && this.score > (prog.bestScore || 0);
+      const prog = this.profile.modes[this.modeKey] || {}, rec = (this.caps ? prog.caps : prog) || {};
+      const isBest = !this.practice && this.score > (rec.bestScore || 0);
       this.scoreWarmup(false);
       this.recordGame();
       const tricky = Object.entries(this.missed).sort((a, b) => b[1] - a[1]).slice(0, 3);
