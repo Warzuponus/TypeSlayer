@@ -33,6 +33,7 @@
 <script src="skins.js"></script>
 <script src="scenes.js"></script>
 <script src="enemies.js"></script>
+<script src="math.js"></script>
 <script>
 (() => {
   const SHEETS = window.VH_SHEETS || {};
@@ -42,7 +43,7 @@
   const ATTACK_X = 232;                    // an enemy that reaches here bites
   const SPAWN_X = W + 60;
   const MAX_HEARTS = 5;
-  const SESSION_MS = 20 * 60 * 1000;       // one daily hunt = 20 minutes of play
+  const PART_MS = 10 * 60 * 1000;          // one daily hunt = 10 minutes of typing and 10 minutes of Math Hunt
   const FONT = 'Fredoka, "Trebuchet MS", system-ui, sans-serif';
   const TITLE_FONT = 'Creepster, Impact, fantasy';
 
@@ -269,6 +270,18 @@
     },
   };
   const MODE_ORDER = ['home', 'top', 'bottom', 'numbers', 'all'];
+  // Math Hunt lives beside the typing modes. Its waves come from the fact engine in math.js, not from a list.
+  MODES.math = { name: 'Math Hunt', keysLabel: 'Times tables', waves: [], endless: {} };
+  const MX = window.VH_MATH;
+  const MATH_JAM = 3;          // 3 wrong answers in a row jam the crossbow, which stops button-mashing
+  const MATH_WAVES = {         // enemies per wave, walking speed, gap between them and how many at once
+    scout:  { count: 18, speed: 30, gap: 4200, max: 3, name: 'Scouting round' },
+    warmup: { count: 10, speed: 40, gap: 3600, max: 4, name: 'Warm-up' },
+    learn:  { count: 16, speed: 36, gap: 4000, max: 4, name: 'Learning' },
+    review: { count: 14, speed: 38, gap: 3800, max: 4, name: 'Review', boss: true },
+    bonus:  { count: 14, speed: 40, gap: 3600, max: 5, name: 'Bonus' },
+  };
+  const BOSS_FACTS = 6;
 
   // ---------- Skipping the warm-up once it's mastered ----------
   // A mode's first waves teach its keys a pair at a time. Wave skipTo is the first one with every letter of
@@ -322,7 +335,12 @@
     while ((p.days[todayKey(d)] || {}).done) { n++; d.setDate(d.getDate() - 1); }
     return n;
   }
-  function todayMs(p) { return (p.days[todayKey()] || {}).ms || 0; }
+  function todayMs(p, math) { const d = p.days[todayKey()] || {}; return (math ? d.mathMs : d.ms) || 0; }
+  // "Typing 4:00 · Math 2:10 of 10:00 each", with a check mark on a finished half
+  function dayParts(p, sep = '   ·   ') {
+    const part = (name, ms) => ms >= PART_MS ? `${name} done ✓` : `${name} ${fmtMin(ms)}`;
+    return `${part('Typing', todayMs(p))}${sep}${part('Math', todayMs(p, true))}`;
+  }
   function fmtMin(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
 
   // ---------- Sound (tiny synth, no files needed) ----------
@@ -697,17 +715,24 @@
     }
     drawMeters() {
       const g = this.jamGfx; g.clear();
-      const jammed = this.jamLeft > 0;
-      for (let i = 0; i < JAM_AFTER; i++) {
+      const jammed = this.jamLeft > 0, math = this.modeKey === 'math', jn = math ? MATH_JAM : JAM_AFTER;
+      for (let i = 0; i < jn; i++) {
         const x = 104 + i * 22, on = jammed || i < this.wrongRun;
         g.fillStyle(on ? 0xff5a5a : 0x2c2148, 1); g.fillCircle(x, 140, 7);
         g.lineStyle(2, on ? 0xffb0b0 : 0x4a3a70, 1); g.strokeCircle(x, 140, 7);
       }
       this.jamLabel.setColor(jammed ? '#ff7b7b' : '#e4d9fb');
-      this.jamNote.setText(jammed ? `JAMMED  ${(this.jamLeft / 1000).toFixed(1)}s` : this.practice ? 'Practice: no jams' : `${JAM_AFTER} misses in a row jam it`)
+      this.jamNote.setText(jammed ? `JAMMED  ${(this.jamLeft / 1000).toFixed(1)}s` : this.practice ? 'Practice: no jams' : `${jn} ${math ? 'wrong answers' : 'misses'} in a row jam it`)
         .setColor(jammed ? '#ff7b7b' : '#9a8bc2');
       if (this.practice) return;
       const m = this.mutGfx; m.clear();
+      if (math) {   // Math Hunt shows the daily goal here instead of the Mutant meter
+        const right = this.mathToday().right, f = Math.min(1, right / MX.DAILY_GOAL), done = right >= MX.DAILY_GOAL;
+        m.fillStyle(0x2c2148, 1); m.fillRoundedRect(20, 180, 200, 8, 4);
+        if (f > 0) { m.fillStyle(done ? 0x7be08f : 0x5ec8ff, 1); m.fillRoundedRect(20, 180, Math.max(8, 200 * f), 8, 4); }
+        this.mutLabel.setText(done ? `Daily math goal done!  ${right} facts` : `Daily math goal  ${right} / ${MX.DAILY_GOAL} facts`).setColor(done ? '#7be08f' : '#e4d9fb');
+        return;
+      }
       const f = Math.min(1, this.waveWrong / MUTANT_AFTER);
       m.fillStyle(0x2c2148, 1); m.fillRoundedRect(20, 180, 200, 8, 4);
       if (f > 0) { m.fillStyle(this.mutantDue ? 0x9be15d : f > 0.66 ? 0xff5a5a : f > 0.33 ? 0xffb547 : 0xffcf5a, 1); m.fillRoundedRect(20, 180, Math.max(8, 200 * f), 8, 4); }
@@ -722,8 +747,13 @@
     wpm() { return this.activeMs > 4000 ? Math.round((this.correct / 5) / (this.activeMs / 60000)) : 0; }
     updateHud() {
       this.drawMeters();
-      this.waveText.setText(`${this.practice ? 'Practice  ·  ' : ''}${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
-      this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps && !this.practice ? '   ·   Capitals ×1.5' : ''}`);
+      if (this.modeKey === 'math') {
+        const st = this.mh.stats, kind = this.mathKind(this.wave);
+        const acc = st.n ? Math.round(st.right / st.n * 100) : 100, avg = st.right ? (st.ms / st.right / 1000).toFixed(1) + 's' : '-';
+        this.waveText.setText(`${kind === 'bonus' ? 'Math Hunt' : MX.stage(this.mh.stage).name}  ·  Wave ${this.wave}: ${MATH_WAVES[kind].name}`);
+        this.statsText.setText(`Right first try ${acc}%   ·   Average ${avg}   ·   Pace ${this.pace.toFixed(1)}×`);
+      } else this.waveText.setText(`${this.practice ? 'Practice  ·  ' : ''}${MODES[this.modeKey].name}  ·  Wave ${this.wave}`);
+      if (this.modeKey !== 'math') this.statsText.setText(`Accuracy ${this.accuracy()}%   ·   Speed ${this.wpm()} WPM   ·   Pace ${this.pace.toFixed(1)}×${this.caps && !this.practice ? '   ·   Capitals ×1.5' : ''}`);
       if (this.practice) {
         this.scoreText.setText('PRACTICE').setColor(PRACTICE_COLOR);
         this.streakText.setText(this.streak ? `Streak ${this.streak}` : '');
@@ -739,11 +769,17 @@
     }
     drawSession() {
       const p = this.profile; if (!p) return;
-      const ms = todayMs(p), done = (p.days[todayKey()] || {}).done;
-      this.sessionText.setText(done ? `Daily hunt done!  ${fmtMin(ms)} today` : `Daily hunt  ${fmtMin(ms)} / 20:00`);
+      const math = this.modeKey === 'math', ms = todayMs(p, math), done = (p.days[todayKey()] || {}).done;
+      const name = math ? 'Math time' : 'Typing time';
+      this.sessionText.setText(done ? 'Daily hunt done!' : ms >= PART_MS ? `${name} done! ✓` : `${name}  ${fmtMin(ms)} / 10:00`);
+      // two short bars: typing (gold) and math (blue), each full at 10 minutes
       const g = this.sessionBar; g.clear();
-      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(20, 80, 200, 8, 4);
-      g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(20, 80, Math.max(8, 200 * Math.min(1, ms / SESSION_MS)), 8, 4);
+      [todayMs(p), todayMs(p, true)].forEach((t, i) => {
+        const x = 20 + i * 102;
+        g.fillStyle(0x2c2148, 1); g.fillRoundedRect(x, 80, 98, 8, 4);
+        g.fillStyle(t >= PART_MS ? 0x7be08f : i ? 0x5ec8ff : 0xffcf5a, (i === 1) === math ? 1 : 0.55);
+        g.fillRoundedRect(x, 80, Math.max(8, 98 * Math.min(1, t / PART_MS)), 8, 4);
+      });
     }
 
     // ---------- On-screen keyboard ----------
@@ -804,6 +840,15 @@
       this.drawShift(false);
       this.drawSpace(true);
       this.showKeyboard(false);
+    }
+    // The cover's words: typing tips, or number-key tips in the Math Hunt.
+    coverText(math) {
+      const [, t, b, f] = this.kbCover;
+      t.setText(math ? 'Eyes on the problems!' : 'Eyes on the vampires!');
+      b.setText(math ? 'Answers use the number keys along the top row of the keyboard.\nTry to find them by feel, without looking down.'
+        : 'The keyboard is covered so your fingers learn where the keys are.\nRest on the home row and feel for the little bumps on F and J.');
+      f.setText(math ? 'Stuck on a fact? Press SPACE to see the answer, then type it. Quick answers make facts Fluent.'
+        : 'Need to see the keys? Press P on the hunt menu for Practice mode (it does not earn points or coins).');
     }
     // The on-screen keyboard is only shown in practice mode. Everywhere else it is covered up.
     showKeyboard(on) {
@@ -893,11 +938,16 @@
     }
     hidePanel() { if (this.panel) { this.panel.destroy(); this.panel = null; } }
 
-    banner(s, y = 200) {
+    banner(s, y = 200, sub = '') {
       const t = this.txt(640, y, s, { fontFamily: TITLE_FONT, fontSize: '84px', color: '#ffcf5a', stroke: '#3b1a5a', strokeThickness: 8 })
         .setOrigin(0.5).setDepth(2900).setScale(0.6).setAlpha(0);
       this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 300, ease: 'Back.out',
-        onComplete: () => this.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: 900, duration: 400, onComplete: () => t.destroy() }) });
+        onComplete: () => this.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: sub ? 1800 : 900, duration: 400, onComplete: () => t.destroy() }) });
+      if (sub) {
+        const u = this.txt(640, y + 62, sub, { fontSize: '30px', fontStyle: '700', color: '#ffffff', stroke: '#140c28', strokeThickness: 6 }).setOrigin(0.5).setDepth(2900).setAlpha(0);
+        this.tweens.add({ targets: u, alpha: 1, duration: 300,
+          onComplete: () => this.tweens.add({ targets: u, alpha: 0, y: y + 32, delay: 1800, duration: 400, onComplete: () => u.destroy() }) });
+      }
     }
 
     // ---------- Menus: profiles, naming, modes ----------
@@ -930,6 +980,7 @@
       this.showKeyboard(false);
       this.vamps.forEach(v => this.removeVamp(v)); this.vamps = [];
       this.hunter.setVisible(false); this.shadowH.setVisible(false);
+      this.coverText(false);
       Music.menu();
     }
 
@@ -953,7 +1004,7 @@
         this.menu.push(spr,
           this.txt(x, y - 128, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0.5).setDepth(2970),
           this.txt(x, y + 44, p.name, { fontSize: '28px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5).setDepth(2970),
-          this.txt(x, y + 80, done ? 'Daily hunt done today' : `Today ${fmtMin(todayMs(p))} of 20:00`, { fontSize: '16px', fontStyle: '500', color: done ? '#7be08f' : '#e4d9fb' }).setOrigin(0.5).setDepth(2970),
+          this.txt(x, y + 80, done ? 'Daily hunt done today' : dayParts(p, ' · '), { fontSize: '16px', fontStyle: '500', color: done ? '#7be08f' : '#e4d9fb' }).setOrigin(0.5).setDepth(2970),
           this.txt(x, y + 104, streak ? `${streak}-day streak` : `${p.sessions} daily hunts done`, { fontSize: '16px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0.5).setDepth(2970));
       });
       if (ps.length < 4) {
@@ -1006,16 +1057,16 @@
       this.logo(pr ? `Practice mode, ${p.name}` : `Choose your hunt, ${p.name}`);
       this.refreshKeyboard(pr ? '12345cp' : '12345pcs', '');
       this.drawSpace(false);
-      const done = (p.days[todayKey()] || {}).done, ms = todayMs(p), streak = dayStreak(p);
+      const done = (p.days[todayKey()] || {}).done, streak = dayStreak(p);
       this.tipText.setText(pr
         ? 'Practice shows the keyboard and which finger to use. Nothing here counts: no points, coins or daily hunt time.'
         : done
-          ? `You finished today's 20-minute hunt. Extra practice still makes you faster!`
-          : `Today's hunt: ${fmtMin(ms)} of 20:00. Any mode counts toward your daily hunt.`);
+          ? `You finished today's hunt. Extra practice still makes you faster!`
+          : `Today's hunt is 10 minutes of typing and 10 minutes of Math Hunt. ${dayParts(p)}.`);
       MODE_ORDER.forEach((key, i) => {
         const M = MODES[key], prog = p.modes[key] || {};
-        const y = 196 + i * 70, x = 520;
-        this.card(x, y, 640, 60, () => this.pickMode(key), !pr && key === Store.data.lastMode, pr ? PRACTICE_EDGE : null);
+        const y = 190 + i * 60, x = 520;
+        this.card(x, y, 640, 52, () => this.pickMode(key), !pr && key === Store.data.lastMode, pr ? PRACTICE_EDGE : null);
         this.menu.push(
           this.txt(x - 300, y, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: pr ? PRACTICE_COLOR : '#ffcf5a', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
           this.txt(x - 258, y - 11, M.name, { fontSize: '22px', fontStyle: '700' }).setOrigin(0, 0.5).setDepth(2970),
@@ -1030,6 +1081,19 @@
             { fontSize: '14px', fontStyle: '600', color: '#7be08f' }).setOrigin(0, 0.5).setDepth(2970));
         }
       });
+      if (!pr) {
+        // Math Hunt: times tables with the same hunters, coins and shop
+        const x = 520, y = 190 + 5 * 60, m = MX.ensure(p), right = this.mathToday().right;
+        const S = MX.stage(MX.smartStage(p)), pg = MX.progress(p, S.id);
+        this.card(x, y, 640, 52, () => this.showMath(), Store.data.lastMode === 'math', 0x5ec8ff);
+        this.menu.push(
+          this.txt(x - 300, y, 'M', { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: '#7be08f', padding: { x: 7, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 258, y - 11, 'Math Hunt', { fontSize: '22px', fontStyle: '700', color: '#7be08f' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 258, y + 13, m.placed ? `Times tables  ·  ${S.name} ${S.label}: ${pg.known} of ${pg.total} known` : 'Times tables  ·  new! Start with a quick scouting round',
+            { fontSize: '14px', fontStyle: '500', color: '#cbbcec' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x + 300, y, right >= MX.DAILY_GOAL ? `Math goal done!\n${right} facts today` : `Math goal\n${right} / ${MX.DAILY_GOAL} facts`,
+            { fontSize: '15px', fontStyle: '600', color: right >= MX.DAILY_GOAL ? '#7be08f' : '#9a8bc2', align: 'right' }).setOrigin(1, 0.5).setDepth(2970));
+      }
       // practice switch
       const px = 1020, py = 196;
       this.card(px, py, 330, 52, () => this.togglePractice(), false, PRACTICE_EDGE);
@@ -1049,12 +1113,15 @@
         // daily hunt box
         this.card(bx, by, 330, 168, () => {});
         const g = this.add.graphics().setDepth(2970);
-        g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 130, by - 24, 260, 12, 6);
-        g.fillStyle(done ? 0x7be08f : 0xffcf5a, 1); g.fillRoundedRect(bx - 130, by - 24, Math.max(12, 260 * Math.min(1, ms / SESSION_MS)), 12, 6);
+        [todayMs(p), todayMs(p, true)].forEach((t, i) => {
+          const x = bx - 130 + i * 134;
+          g.fillStyle(0x2c2148, 1); g.fillRoundedRect(x, by - 24, 126, 12, 6);
+          g.fillStyle(t >= PART_MS ? 0x7be08f : i ? 0x5ec8ff : 0xffcf5a, 1); g.fillRoundedRect(x, by - 24, Math.max(12, 126 * Math.min(1, t / PART_MS)), 12, 6);
+        });
         const weak = this.weakKeys(3);
         this.menu.push(g,
           this.txt(bx, by - 66, 'DAILY HUNT', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2' }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
-          this.txt(bx, by - 42, done ? 'Done for today!' : `${fmtMin(ms)} of 20:00`, { fontSize: '26px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
+          this.txt(bx, by - 42, done ? 'Done for today!' : dayParts(p, ' · '), { fontSize: '18px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
           this.txt(bx, by + 8, `Day streak: ${streak}   ·   Hunts done: ${p.sessions}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
           this.txt(bx, by + 50, weak.length ? `Keys to practice:\n${weak.map(k => k.toUpperCase()).join('   ')}` : 'Play a round and I will\nfind your tricky keys.',
             { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970));
@@ -1062,7 +1129,7 @@
       this.menu.push(
         this.txt(640, 538, pr
           ? '1 to 5 practice a hunt   ·   C capitals   ·   P or ESC back to the real hunt'
-          : '1 to 5 pick a hunt   ·   P practice   ·   C capitals   ·   S shop   ·   ESC switch hunter',
+          : '1 to 5 pick a hunt   ·   M math   ·   P practice   ·   C capitals   ·   S shop   ·   ESC switch hunter',
           { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
       this.drawCapsToggle();
       // shop entry
@@ -1208,6 +1275,383 @@
       this.startGame(key, this.practice ? 1 : autoStartWave(this.profile, key));   // practice always starts at the beginning
     }
 
+    // ---------- Math Hunt: menu ----------
+    mathToday() { return (this.profile && MX.ensure(this.profile).days[todayKey()]) || { n: 0, right: 0, fast: 0 }; }
+    showMath() {
+      this.menuPrep();
+      this.state = 'mathmenu';
+      this.practice = false;
+      this.coverText(true);
+      const p = this.profile, m = MX.ensure(p);
+      MX.updateOpen(p);
+      Store.data.lastMode = 'math'; Store.save();
+      this.logo(`Math Hunt, ${p.name}`);
+      this.refreshKeyboard('123', '');
+      this.drawSpace(true);
+      const smart = MX.smartStage(p), S = MX.stage(smart);
+      this.tipText.setText(m.placed
+        ? 'Type the answer and the crossbow fires by itself. Answers under 3 seconds make a fact Fluent.'
+        : 'Your first Math Hunt starts with a scouting round. Scouts never bite, so just do your best.');
+      const x = 470;
+      this.card(x, 200, 700, 76, () => this.startMath(smart), true, 0x7be08f);
+      this.menu.push(
+        this.txt(x - 330, 200, 'SPACE', { fontSize: '17px', fontStyle: '700', color: '#140c28', backgroundColor: '#7be08f', padding: { x: 8, y: 3 } }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(x - 250, 186, 'Smart Hunt', { fontSize: '26px', fontStyle: '700', color: '#7be08f' }).setOrigin(0, 0.5).setDepth(2970),
+        this.txt(x - 250, 216, m.placed ? `The ${S.name} (${S.label}), plus the facts that are due today` : 'First time: a 3-minute scouting round finds the facts you already know',
+          { fontSize: '16px', fontStyle: '500', color: '#e4d9fb' }).setOrigin(0, 0.5).setDepth(2970));
+      MX.STAGES.forEach((s, i) => {
+        const y = 300 + i * 82, open = s.id <= m.open, pg = MX.progress(p, s.id);
+        this.card(x, y, 700, 70, () => (open ? this.startMath(s.id) : this.mathLocked(s)), false, open ? null : 0x3d2b63);
+        const prev = MX.stage(s.id - 1);
+        this.menu.push(
+          this.txt(x - 330, y, `${i + 1}`, { fontSize: '20px', fontStyle: '700', color: '#140c28', backgroundColor: open ? '#ffcf5a' : '#5b4f78', padding: { x: 9, y: 2 } }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 290, y - 13, `${s.name}  ·  ${s.label}`, { fontSize: '22px', fontStyle: '700', color: open ? '#ffffff' : '#7d6fa3' }).setOrigin(0, 0.5).setDepth(2970),
+          this.txt(x - 290, y + 14, open
+            ? `${pg.known} of ${pg.total} known  ·  ${pg.fluent} fluent${m.mastered[s.id] ? '  ·  Mastered!' : ''}`
+            : `Opens when ${Math.round(MX.GATE * 100)}% of the ${prev.name} is known (now ${Math.round(MX.progress(p, prev.id).pct * 100)}%)`,
+            { fontSize: '15px', fontStyle: '500', color: open ? '#cbbcec' : '#7d6fa3' }).setOrigin(0, 0.5).setDepth(2970));
+        if (open) this.menu.push(this.levelBar(x + 120, y, 210, 14, pg.counts));
+      });
+      // daily goal and facts to practice
+      const bx = 1050, by = 268, today = this.mathToday(), done = today.right >= MX.DAILY_GOAL;
+      this.card(bx, by, 380, 212, () => {});
+      const g = this.add.graphics().setDepth(2970);
+      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(bx - 150, by - 34, 300, 12, 6);
+      g.fillStyle(done ? 0x7be08f : 0x5ec8ff, 1); g.fillRoundedRect(bx - 150, by - 34, Math.max(12, 300 * Math.min(1, today.right / MX.DAILY_GOAL)), 12, 6);
+      const weak = MX.weakFacts(p, 3);
+      this.menu.push(g,
+        this.txt(bx, by - 84, 'DAILY MATH GOAL', { fontSize: '14px', fontStyle: '700', color: '#9a8bc2', padding: { x: 4 } }).setOrigin(0.5).setLetterSpacing(2).setDepth(2970),
+        this.txt(bx, by - 56, done ? `Done! ${today.right} facts today` : `${today.right} of ${MX.DAILY_GOAL} facts today`, { fontSize: '24px', fontStyle: '700', color: done ? '#7be08f' : '#ffffff' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by - 2, `Under 3 seconds: ${today.fast}   ·   Math time: ${todayMs(p, true) >= PART_MS ? 'done ✓' : fmtMin(todayMs(p, true)) + ' / 10:00'}`, { fontSize: '16px', fontStyle: '500' }).setOrigin(0.5).setDepth(2970),
+        this.txt(bx, by + 52, weak.length ? `Facts to practice:\n${weak.map(MX.label).join('    ')}` : m.placed ? 'Play a hunt and I will\nfind your tricky facts.' : 'Every hunter starts with\na scouting round.',
+          { fontSize: '16px', fontStyle: '600', color: '#ffb547', align: 'center', lineSpacing: 5 }).setOrigin(0.5).setDepth(2970));
+      // what the colors mean
+      const ly = 412;
+      this.card(bx, ly, 380, 52, () => {});
+      const items = MX.LEVELS.map(L => ({ L, t: this.txt(0, ly, L.name, { fontSize: '13px', fontStyle: '600', color: '#e4d9fb' }).setOrigin(0, 0.5).setDepth(2970) }));
+      let lx = bx - (items.reduce((w, it) => w + it.t.width + 30, 0) - 12) / 2;
+      items.forEach(({ L, t }) => {
+        const d = this.add.graphics().setDepth(2970); d.fillStyle(L.color, 1); d.fillCircle(lx + 6, ly, 6);
+        t.setX(lx + 16); lx += t.width + 30;
+        this.menu.push(d, t);
+      });
+      this.menu.push(this.txt(640, 538, 'SPACE Smart Hunt   ·   1 to 3 pick a place   ·   ESC back to the hunt menu',
+        { fontSize: '16px', fontStyle: '600', color: '#e4d9fb', stroke: '#140c28', strokeThickness: 4 }).setOrigin(0.5).setDepth(2970));
+    }
+    // A bar split by level: grey New, red Learning, amber Known, green Fluent, gold Mastered.
+    levelBar(x, y, w, h, counts) {
+      const g = this.add.graphics().setDepth(2970), total = counts.reduce((a, b) => a + b, 0) || 1;
+      g.fillStyle(0x2c2148, 1); g.fillRoundedRect(x, y - h / 2, w, h, h / 2);
+      let cx = x;
+      [4, 3, 2, 1].forEach(l => {
+        const sw = w * counts[l] / total; if (sw <= 0) return;
+        g.fillStyle(MX.LEVELS[l].color, 1); g.fillRect(cx, y - h / 2, sw, h); cx += sw;
+      });
+      g.lineStyle(2, 0x140c28, 1); g.strokeRoundedRect(x, y - h / 2, w, h, h / 2);
+      return g;
+    }
+    mathLocked(s) {
+      Sfx.miss();
+      const prev = MX.stage(s.id - 1);
+      this.floatText(470, 300 + (s.id - 1) * 82, `Know ${Math.round(MX.GATE * 100)}% of the ${prev.name} to open the ${s.name}`, '#ffb547', 20);
+    }
+
+    // ---------- Math Hunt: a hunt ----------
+    // One hunt: a scouting round the very first time (or a warm-up of known facts), two learning waves that each
+    // teach a lesson, then a review wave of facts due from other days with the stage's boss at the end.
+    startMath(stageId) {
+      Sfx.click();
+      const p = this.profile, m = MX.ensure(p);
+      const known = MX.openStages(p).reduce((n, s) => n + MX.progress(p, s.id).known, 0);
+      const plan = [];
+      if (!m.placed) plan.push('scout');
+      else if (known >= 4) plan.push('warmup');
+      plan.push('learn', 'learn', 'review');
+      this.mh = {
+        stage: stageId, plan, retry: [], focus: [], last: null, lesson: null, done: false,
+        stats: { n: 0, right: 0, fast: 0, ms: 0 }, wave: { n: 0, right: 0 }, start: {}, opened: [], misses: {},
+        scout: plan[0] === 'scout' ? { list: MX.scoutList(), i: 0, results: [], missRun: 0 } : null,
+      };
+      this.startGame('math', 1);
+    }
+    mathKind(n) { return n <= this.mh.plan.length ? this.mh.plan[n - 1] : 'bonus'; }
+    mathCfg(kind) {
+      const C = Object.assign({ kind }, MATH_WAVES[kind]);
+      if (kind === 'scout') C.count = this.mh.scout.list.length;
+      if (kind === 'bonus') {   // every bonus wave is a little longer and faster
+        const extra = this.wave - this.mh.plan.length - 1;
+        Object.assign(C, { count: C.count + extra * 2, speed: C.speed + extra * 3, gap: Math.max(2400, C.gap - extra * 150), boss: extra % 2 === 1 });
+      }
+      return C;
+    }
+    mathIntro(clearedNote) {
+      const mh = this.mh, p = this.profile;
+      if (this.wave === mh.plan.length + 1 && !mh.done) { mh.done = true; this.mathResults(clearedNote); return; }
+      this.state = 'intermission';
+      const kind = this.mathKind(this.wave), S = MX.stage(mh.stage);
+      this.cfg = this.mathCfg(kind);
+      this.hideGlow(); this.drawSpace(true);
+      this.tipText.setText(S.tip);
+      mh.lesson = null;
+      if (kind === 'learn') { const L = MX.huntLesson(p, mh.stage); if (MX.canLearn(p, L)) mh.lesson = L; }
+      this.updateHud();
+      const first = this.wave === 1 && !clearedNote;
+      const rules = first ? `\n\nType the answer and the crossbow fires by itself. Backspace fixes a slip.\nDon't know one? Press SPACE to see the answer, then type it.${kind === 'scout' ? '' : `\n${MATH_JAM} wrong answers in a row jam your crossbow.`}` : '';
+      const what = {
+        scout: `Let's find the facts you already know. Scouts never bite, so just do your best.\nQuick answers count the most.`,
+        warmup: 'Warm-up: facts you already know. Nice and quick!',
+        learn: mh.lesson ? '' : `Lock in the facts you are learning. Slow mummies carry them, so take a breath and think.`,
+        review: `Review: facts from other days, mixed together.\nWatch out: a boss shows up at the end! Answer all of its facts to chase it off.`,
+        bonus: `Bonus round: every fact you have met, a little faster each wave.${this.cfg.boss ? '\nA boss is coming at the end!' : ''}`,
+      }[kind];
+      if (mh.lesson) { this.showLessonCard(clearedNote); return; }
+      const noteLines = clearedNote ? (clearedNote.match(/\n/g) || []).length * 30 : 0;
+      const body = (clearedNote ? clearedNote + '\n\n' : '') + what + rules;
+      this.showPanel({
+        y: 300, h: 250 + (clearedNote ? 70 : 0) + noteLines + (rules ? 120 : 0) + ((what.match(/\n/g) || []).length * 30),
+        title: clearedNote ? `Wave ${this.wave - 1} cleared!` : kind === 'scout' ? 'Scouting round' : `${S.name}: wave ${this.wave}`,
+        body,
+        footer: 'SPACE to start   ·   ESC for the math menu',
+      });
+    }
+    // A new-fact card: each new fact is shown as rows of dots with its answer, and Titus types the answer once.
+    showLessonCard(clearedNote) {
+      const L = this.mh.lesson;
+      const items = (L.rule ? [L.example] : L.facts.filter(k => L.fresh.includes(k)).map(k => MX.parse(k)))
+        .map(([a, b]) => { const t = L.table; const [x, y] = a === t ? [a, b] : [b, a]; return { a: x, b: y, ans: x * y, buf: '', done: false }; });
+      this.mh.card = { items, i: 0 };
+      const title = L.rule ? `The ×${L.table} rule` : items.length > 1 ? 'Two new facts!' : 'A new fact!';
+      const body = (clearedNote ? clearedNote + '\n\n' : '') + (L.rule ? L.text : `Look at the dots, then type each answer once.`);
+      const extra = clearedNote ? 70 + (clearedNote.match(/\n/g) || []).length * 30 : 0;
+      const h = 450 + extra;
+      this.showPanel({ y: 300 + extra / 4, h, title, body, footer: 'Type the answer to learn it' });
+      this.state = 'mathcard';
+      const top = -h / 2 + 140 + extra;
+      items.forEach((it, i) => {
+        const cx = items.length > 1 ? (i ? 175 : -175) : 0;
+        const rows = Math.min(it.a, it.b), cols = Math.max(it.a, it.b), step = Math.min(24, Math.floor(150 / cols));
+        const g = this.add.graphics();
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          g.fillStyle(FINGER_COLORS[r % FINGER_COLORS.length], 1);
+          g.fillCircle(cx - (cols - 1) * step / 2 + c * step, top + 80 - (rows - 1) * step / 2 + r * step, step * 0.38);
+        }
+        it.rowsTxt = this.txt(cx, top + 166, `${rows} row${rows > 1 ? 's' : ''} of ${cols}`, { fontSize: '16px', fontStyle: '500', color: '#9a8bc2' }).setOrigin(0.5);
+        it.fact = this.txt(cx, top + 200, `${it.a} × ${it.b} = ${it.ans}`, { fontSize: '34px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5);
+        it.prompt = this.txt(cx, top + 242, '', { fontSize: '22px', fontStyle: '700', color: '#ffcf5a' }).setOrigin(0.5);
+        this.panel.add([g, it.rowsTxt, it.fact, it.prompt]);
+      });
+      this.drawLessonCard();
+    }
+    drawLessonCard() {
+      const C = this.mh.card;
+      C.items.forEach((it, i) => {
+        if (it.done) it.prompt.setText('Got it!').setColor('#7be08f');
+        else if (i === C.i) it.prompt.setText(`Type ${it.ans}:  ${it.buf || ''}_`).setColor('#ffcf5a');
+        else it.prompt.setText('Next').setColor('#5b4f78');
+      });
+    }
+    cardKey(k) {
+      const C = this.mh.card;
+      if (k === 'Escape') { this.quitToModes(); return; }
+      const it = C.items[C.i];
+      if (!it) { if (k === ' ') this.beginWave(); return; }
+      if (k === 'Backspace') { it.buf = it.buf.slice(0, -1); this.drawLessonCard(); return; }
+      if (!/^[0-9]$/.test(k)) return;
+      it.buf += k;
+      const ans = String(it.ans);
+      if (it.buf === ans) {
+        it.done = true; C.i++; Sfx.fanfare();
+        if (C.i >= C.items.length) this.finishLessonCard();
+      } else if (it.buf.length >= ans.length) {
+        Sfx.miss(); it.buf = '';
+        this.tweens.add({ targets: it.prompt, x: it.prompt.x + 8, duration: 50, yoyo: true, repeat: 2 });
+      } else Sfx.key();
+      this.drawLessonCard();
+    }
+    finishLessonCard() {
+      const mh = this.mh, L = mh.lesson;
+      MX.introduce(this.profile, L, MX.dayNum());
+      mh.focus = L.fresh.slice();
+      this.saveProfile();
+      this.state = 'intermission';
+      // swap the footer for the start prompt
+      const f = this.panel.list[3];
+      f.setText(L.rule ? 'SPACE to start: lots of these are coming!' : 'SPACE to start: watch for these facts!').setColor('#7be08f');
+    }
+    makeFact(k) {
+      const [lo, hi] = MX.parse(k), flip = Math.random() < 0.5;
+      return { key: k, a: flip ? lo : hi, b: flip ? hi : lo, ans: lo * hi };
+    }
+    // The next fact for an enemy: a missed fact comes back 2 enemies later, otherwise the engine picks.
+    mathFact(kind) {
+      const mh = this.mh;
+      if (kind === 'scout' && mh.scout && mh.scout.i < mh.scout.list.length) return this.makeFact(mh.scout.list[mh.scout.i++]);
+      const avoid = new Set(this.vamps.filter(v => !v.dead && v.fact).map(v => v.fact.key));
+      let k = null;
+      const r = kind === 'rule' ? -1 : mh.retry.findIndex(x => x.at <= this.spawned && !avoid.has(x.key));
+      if (r >= 0) k = mh.retry.splice(r, 1)[0].key;
+      else {
+        if (mh.last) avoid.add(mh.last);
+        k = MX.pick(this.profile, { kind: kind === 'scout' ? 'bonus' : kind, stage: mh.stage, focus: mh.focus, avoid, today: MX.dayNum() });
+      }
+      mh.last = k;
+      return this.makeFact(k);
+    }
+    // Slow mummies carry facts still being learned, fast wolf pups carry fluent ones.
+    mathType(fact) {
+      const lvl = MX.level(this.profile, fact.key);
+      const opts = this.cfg.kind === 'scout' ? [['fledgling', 3], ['armored', 1]]
+        : lvl <= 1 ? [['mummy', 3], ['fledgling', 1]]
+        : lvl === 2 ? [['fledgling', 3], ['armored', 1.5], ['ghoul', 1]]
+        : [['wolf', 2], ['ghoul', 1], ['fledgling', 1]];
+      const ok = opts.filter(([t]) => TYPES[t] && this.textures.exists(TYPES[t].sheet));
+      return ok.length ? this.weighted(ok, o => o[1])[0] : 'fledgling';
+    }
+    setFact(v, f) {
+      Object.assign(v, { fact: f, word: String(f.ans), display: String(f.ans), buf: '', typed: 0, tried: false, revealed: false, reveal: false, aimAt: this.time.now });
+      this.redrawLabel(v);
+    }
+    // The crossbow always aims at the enemy closest to the hunter. It stays on one Titus has started typing.
+    mathAim() {
+      const cur = this.target && !this.target.dead && !this.target.removed ? this.target : null;
+      if (cur && cur.buf) return cur;
+      const alive = this.vamps.filter(v => !v.dead && v.fact);
+      const v = alive.length ? alive.reduce((a, b) => (a.x < b.x ? a : b)) : null;
+      if (v !== this.target) {
+        const old = this.target; this.target = v;
+        if (old && !old.removed) { old.buf = ''; this.redrawLabel(old); }
+        if (v) { v.aimAt = this.time.now; this.redrawLabel(v); }
+      }
+      return v;
+    }
+    mathKey(k) {
+      const now = this.time.now;
+      this.vamps.forEach(a => a.pendingWord && this.nextBossWord(a));   // answering on before the bolt lands
+      const digit = /^[0-9]$/.test(k);
+      if (this.jamLeft > 0) { if (digit) Sfx.clunk(); return; }
+      const v = this.mathAim();
+      if (!v || now < (v.revealUntil || 0)) return;
+      if (k === 'Backspace') { v.buf = v.buf.slice(0, -1); this.redrawLabel(v); return; }
+      if (k === ' ' || k === 'Enter') {   // "I don't know": show the answer, then type it
+        if (!v.tried) this.mathAnswer(v, false, 0);
+        this.streak = 0;
+        this.revealFact(v);
+        return;
+      }
+      if (!digit || v.buf.length >= 4) return;
+      v.buf += k;
+      const ans = String(v.fact.ans);
+      if (v.buf === ans) {
+        const rt = Math.min(10000, now - (v.aimAt || now));
+        v.lastFast = !v.revealed && rt <= MX.FAST_MS;
+        if (!v.tried) this.mathAnswer(v, true, rt);
+        this.streak++; this.bestStreak = Math.max(this.bestStreak, this.streak); this.wrongRun = 0;
+        v.buf = ''; this.target = null;
+        this.redrawLabel(v);
+        this.shoot(v);
+      } else if (v.buf.length >= ans.length) {
+        if (!v.tried) this.mathAnswer(v, false, 0);
+        this.streak = 0; this.wrongRun++;
+        Sfx.miss();
+        v.shakeUntil = now + 220;
+        this.revealFact(v);
+        if (this.wrongRun >= MATH_JAM && this.cfg.kind !== 'scout') this.jam();
+      } else { Sfx.key(); this.redrawLabel(v); }
+    }
+    // Shows the right answer on the enemy for a second. Then it is typed again, which doesn't count either way.
+    revealFact(v) {
+      v.revealed = true; v.reveal = true; v.buf = '';
+      v.revealUntil = this.time.now + 1000;
+      this.redrawLabel(v);
+      this.time.delayedCall(1000, () => { if (!v.removed) { v.reveal = false; this.redrawLabel(v); } });
+    }
+    // Records the first answer to an enemy's fact. Typing it again after a miss never counts.
+    mathAnswer(v, ok, rt) {
+      if (v.tried) return;
+      v.tried = true;
+      const mh = this.mh, p = this.profile, k = v.fact.key, scout = this.cfg.kind === 'scout';
+      const f = MX.fact(p, k);
+      if (!(k in mh.start)) mh.start[k] = f.lvl;
+      const { before, after } = MX.record(f, ok, rt, MX.dayNum(), scout);
+      MX.logDay(p, todayKey(), k, ok, rt);
+      mh.stats.n++; mh.wave.n++;
+      if (ok) {
+        mh.stats.right++; mh.wave.right++; mh.stats.ms += rt; if (rt <= MX.FAST_MS) mh.stats.fast++;
+        this.correct++; this.mathGoal();
+      } else {
+        this.wrong++; mh.misses[k] = (mh.misses[k] || 0) + 1;
+        if (!scout) mh.retry.push({ key: k, at: this.spawned + 2 });
+      }
+      if (scout) {
+        mh.scout.results.push({ key: k, ok, ms: rt });
+        mh.scout.missRun = ok ? 0 : mh.scout.missRun + 1;
+        if (mh.scout.missRun >= 4) this.time.delayedCall(600, () => this.endScout());
+      } else if (after > before && after >= 2) {
+        this.floatText(v.x, this.hitY(v) - 120, `${MX.LEVELS[after].name}!`, '#' + MX.LEVELS[after].color.toString(16).padStart(6, '0'), 20);
+      }
+      if (!scout) MX.updateOpen(p).forEach(s => {
+        mh.opened.push(s);
+        this.time.delayedCall(700, () => { this.banner(`The ${s.name} is open!`, 260); if (!Music.sting('reward-unlocked')) Sfx.big(); });
+      });
+    }
+    mathGoal() {
+      const d = this.mathToday();
+      if (d.goal || d.right < MX.DAILY_GOAL) return;
+      d.goal = true;
+      this.addCoins(50);
+      this.banner('Daily math goal!', 150);
+      if (!Music.sting('reward-unlocked')) Sfx.big();
+      this.saveProfile();
+    }
+    // Four misses in a row in the scouting round: that's enough to know where to start.
+    endScout() {
+      if (this.state !== 'playing' || !this.mh.scout || this.mh.scout.ended) return;
+      this.mh.scout.ended = true;
+      this.spawned = this.cfg.count;
+      this.vamps.forEach(v => { if (!v.dead) { v.dead = true; this.batAway(v, 1); } });
+      this.banner('Scouting done!');
+    }
+    mathWaveNote() {
+      const mh = this.mh, w = mh.wave;
+      let note = w.n ? `This wave: ${w.right} of ${w.n} right first try` : '';
+      if (this.cfg.kind === 'scout') {
+        const opened = MX.finishScout(this.profile, mh.scout.results, MX.dayNum());
+        mh.stage = MX.smartStage(this.profile);
+        const known = MX.openStages(this.profile).reduce((n, s) => n + MX.progress(this.profile, s.id).known, 0);
+        note = `${known ? `You already know ${known} fact${known === 1 ? '' : 's'}!` : 'Now I know where to start.'} Your hunt goes to the ${MX.stage(mh.stage).name}.` +
+          (opened.length ? `\nOpened: ${opened.map(s => `the ${s.name}`).join(' and ')}.` : '');
+      }
+      mh.wave = { n: 0, right: 0 };
+      return note;
+    }
+    // The end of the planned waves: what moved up, how close the next place is, coins and the daily goal.
+    mathResults(note) {
+      this.state = 'mathdone';
+      const mh = this.mh, p = this.profile, S = MX.stage(mh.stage), pg = MX.progress(p, S.id), st = mh.stats, today = this.mathToday();
+      if (!Music.sting('reward-unlocked')) Sfx.big();
+      const ups = Object.keys(mh.start).filter(k => MX.level(p, k) > mh.start[k] && MX.level(p, k) >= 2)
+        .sort((a, b) => MX.level(p, b) - MX.level(p, a));
+      const upLine = ups.length
+        ? `Moved up: ${ups.slice(0, 4).map(k => `${MX.label(k)} ${MX.LEVELS[MX.level(p, k)].name}`).join(',  ')}${ups.length > 4 ? `  and ${ups.length - 4} more` : ''}`
+        : 'Keep going: facts move up when you answer them quickly on different days.';
+      const next = MX.STAGES.find(s => s.id === S.id + 1);
+      const stageLine = MX.ensure(p).mastered[S.id] ? `The ${S.name} is Mastered!`
+        : `${S.name}: ${pg.known} of ${pg.total} known (${Math.round(pg.pct * 100)}%)` +
+          (next ? (next.id <= MX.ensure(p).open ? `.  The ${next.name} is open!` : `.  ${Math.round(MX.GATE * 100)}% opens the ${next.name}.`) : '');
+      const acc = st.n ? Math.round(st.right / st.n * 100) : 100;
+      const noteLines = note ? (note.match(/\n/g) || []).length + 2 : 0;
+      this.showPanel({
+        y: 290, h: 400 + noteLines * 30, w: 960,
+        title: 'Hunt complete!',
+        body: (note ? note + '\n\n' : '') +
+          `Facts answered: ${st.n}   ·   Right first try: ${acc}%   ·   Under 3 seconds: ${st.fast}\n` +
+          upLine + '\n' + stageLine + '\n\n' +
+          `Coins earned: ${this.coinsEarned}   ·   Daily math goal: ${Math.min(today.right, MX.DAILY_GOAL)} of ${MX.DAILY_GOAL}${today.right >= MX.DAILY_GOAL ? ' (done!)' : ''}`,
+        footer: 'SPACE for bonus waves   ·   ESC back to the math menu',
+      });
+      this.recordGame();
+    }
+
     // ---------- Learning: per-key stats for this hunter ----------
     keyStat(k) {
       if (this.practice) return { hit: 0, miss: 0, ms: 0 };   // practice with the keyboard showing doesn't change a hunter's key stats
@@ -1240,6 +1684,7 @@
     startGame(modeKey, wave = 1) {
       this.menuPrep();
       this.showKeyboard(!!this.practice);
+      this.coverText(modeKey === 'math');
       this.hunter.setVisible(true); this.shadowH.setVisible(true);
       this.setLook(this.profile.look);
       this.battleMusic = this.nextMusic = null;
@@ -1248,7 +1693,7 @@
         modeKey, wave, startWave: wave, autoWave: wave > 1 ? wave : 0, hearts: MAX_HEARTS, score: 0, streak: 0, bestStreak: 0,
         correct: 0, wrong: 0, kills: 0, activeMs: 0, missed: {}, target: null, clearing: false,
         pace: Phaser.Math.Clamp(prog.pace || 0.9, 0.75, 1.5), lastKeyAt: 0, sessionCheered: false, saveClock: 0,
-        caps: !!this.profile.caps, coinsEarned: 0,
+        caps: modeKey !== 'math' && !!this.profile.caps, coinsEarned: 0,
         wrongRun: 0, waveWrong: 0, jamLeft: 0, pointsLost: 0, mutantDue: false, mutantSpawned: false, mutants: 0,
       });
       this.updateHearts();
@@ -1257,6 +1702,7 @@
     }
 
     introWave(clearedNote) {
+      if (this.modeKey === 'math') { this.mathIntro(clearedNote); return; }
       this.state = 'intermission';
       this.cfg = waveConfig(this.modeKey, this.wave);
       const cfg = this.cfg;
@@ -1312,8 +1758,15 @@
       Object.assign(this, { wrongRun: 0, waveWrong: 0, waveLost: 0, mutantDue: false, mutantSpawned: false });
       this.unjam(true);
       this.waveKeys0 = [this.correct, this.wrong];   // for this wave's own accuracy
-      this.battleMusic = this.nextMusic || pickBattle(this.modeKey, this.wave, this.battleMusic);
-      this.nextMusic = pickBattle(this.modeKey, this.wave + 1, this.battleMusic);
+      if (this.modeKey === 'math') {   // each math place keeps its own setting; bonus waves visit the open ones
+        const open = MX.openStages(this.profile).map(s => s.track), prev = this.battleMusic;
+        this.battleMusic = this.mathKind(this.wave) === 'bonus' ? Phaser.Utils.Array.GetRandom(open.length > 1 ? open.filter(t => t !== prev) : open) : MX.stage(this.mh.stage).track;
+        this.nextMusic = this.battleMusic;
+        this.mh.wave = { n: 0, right: 0 };
+      } else {
+        this.battleMusic = this.nextMusic || pickBattle(this.modeKey, this.wave, this.battleMusic);
+        this.nextMusic = pickBattle(this.modeKey, this.wave + 1, this.battleMusic);
+      }
       Music.want(this.battleMusic);
       Music.prefetch(this.nextMusic);
       const moving = this.sceneTransition(TRACK_SCENE[this.battleMusic]);
@@ -1339,7 +1792,7 @@
         this.saveProfile();
       }
       this.wave++;
-      const missNote = this.practice ? '' : this.waveWrong === 0 ? '\nNo wrong keys at all. Perfect aim!' : `\nWrong keys this wave: ${this.waveWrong} (-${this.waveLost} points)`;
+      const missNote = this.modeKey === 'math' ? '\n' + this.mathWaveNote() : this.practice ? '' : this.waveWrong === 0 ? '\nNo wrong keys at all. Perfect aim!' : `\nWrong keys this wave: ${this.waveWrong} (-${this.waveLost} points)`;
       Object.assign(this, { wrongRun: 0, waveWrong: 0, waveLost: 0, mutantDue: false, mutantSpawned: false });   // fresh meters for the next wave
       this.introWave((healed ? 'You found a garlic snack: +1 heart!' : 'Not a scratch on you. Nice hunting!') + (this.practice ? '' : `   +${coins} coins`) + missNote + warmNote);
     }
@@ -1367,18 +1820,21 @@
     pause() {
       if (this.state !== 'playing') return;
       this.state = 'paused';
+      this.pausedAt = this.time.now;
       this.tweens.pauseAll(); this.time.paused = true;
-      this.showPanel({ y: 300, h: 230, title: 'Paused', body: 'Take a breath and put your fingers back on the home row.', footer: 'SPACE to keep hunting   ·   ESC for menu' });
+      this.showPanel({ y: 300, h: 230, title: 'Paused', body: this.modeKey === 'math' ? 'Take a breath. The answer timer is stopped too.' : 'Take a breath and put your fingers back on the home row.', footer: 'SPACE to keep hunting   ·   ESC for menu' });
     }
     resume() {
       this.hidePanel();
+      const away = this.time.now - (this.pausedAt || this.time.now);
+      this.vamps.forEach(v => { if (v.aimAt) v.aimAt += away; });
       this.tweens.resumeAll(); this.time.paused = false;
       this.state = 'playing';
     }
     quitToModes() {
       this.tweens.resumeAll(); this.time.paused = false;
       this.recordGame();
-      this.showModes();
+      if (this.modeKey === 'math') this.showMath(); else this.showModes();
     }
 
     recordGame() {
@@ -1386,8 +1842,10 @@
       const prog = this.profile.modes[this.modeKey] || (this.profile.modes[this.modeKey] = {});
       prog.bestScore = Math.max(prog.bestScore || 0, this.score);
       const a = this.profile.ach;
-      if (this.correct >= 40) a.bestWpm = Math.max(a.bestWpm, this.wpm());
-      if (this.correct + this.wrong >= 60) a.bestAcc = Math.max(a.bestAcc, this.accuracy());
+      if (this.modeKey !== 'math') {   // words per minute and accuracy unlocks stay about typing
+        if (this.correct >= 40) a.bestWpm = Math.max(a.bestWpm, this.wpm());
+        if (this.correct + this.wrong >= 60) a.bestAcc = Math.max(a.bestAcc, this.accuracy());
+      }
       this.checkUnlocks();
       prog.pace = Phaser.Math.Clamp(this.pace * 0.95, 0.75, 1.5);   // next game starts a touch easier than this one ended
       this.saveProfile();
@@ -1398,8 +1856,15 @@
       if (this.practice) return;   // practice doesn't count toward the daily hunt
       const p = this.profile, k = todayKey();
       const day = p.days[k] || (p.days[k] = { ms: 0, done: false });
-      day.ms += ms;
-      if (!day.done && day.ms >= SESSION_MS) {
+      const math = this.modeKey === 'math', f = math ? 'mathMs' : 'ms', before = day[f] || 0;
+      day[f] = before + ms;
+      const other = (math ? day.ms : day.mathMs) || 0;
+      if (!day.done && before < PART_MS && day[f] >= PART_MS && other < PART_MS) {
+        Sfx.fanfare();
+        this.banner(math ? 'Math time done!' : 'Typing time done!', 150, math ? 'Now 10 minutes of typing finishes today\'s hunt.' : 'Now 10 minutes of Math Hunt finishes today\'s hunt.');
+        this.saveProfile();
+      }
+      if (!day.done && (day.ms || 0) >= PART_MS && (day.mathMs || 0) >= PART_MS) {
         day.done = true; p.sessions = (p.sessions || 0) + 1;
         this.addCoins(100);
         this.sessionCheered = 'pending';
@@ -1443,13 +1908,27 @@
           this.time.delayedCall(900, () => { this.overReady = true; });
           return;
         }
+        if (this.modeKey === 'math') {
+          const st = this.mh.stats, acc = st.n ? Math.round(st.right / st.n * 100) : 100, today = this.mathToday();
+          const tricky = Object.entries(this.mh.misses).sort((a, b) => b[1] - a[1]).slice(0, 3);
+          this.showPanel({
+            y: 300, h: 380 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
+            body: sessionLine + `Score ${this.score.toLocaleString()}${isBest ? '   (new best!)' : ''}\n` +
+                  `Facts answered: ${st.n}   ·   Right first try: ${acc}%   ·   Under 3 seconds: ${st.fast}\n\n` +
+                  (tricky.length ? `Facts to practice: ${tricky.map(([k]) => MX.label(k)).join('    ')}` : 'No missed facts. Sharp shooting!') +
+                  `\nCoins earned: ${this.coinsEarned}   ·   Daily math goal: ${Math.min(today.right, MX.DAILY_GOAL)} of ${MX.DAILY_GOAL}`,
+            footer: 'Press SPACE to continue',
+          });
+          this.time.delayedCall(900, () => { this.overReady = true; });
+          return;
+        }
         this.showPanel({
           y: 300, h: 410 + (sessionLine ? 60 : 0), title: 'The vampires got you!',
           body: sessionLine + `Score ${this.score.toLocaleString()}${isBest ? '   (new best!)' : ''}\n` +
                 `Waves cleared: ${this.wave - this.startWave}    Vampires stopped: ${this.kills}\n` +
                 `Accuracy: ${this.accuracy()}%    Speed: ${this.wpm()} WPM    Best streak: ${this.bestStreak}\n\n` +
                 `Wrong keys: ${this.wrong} (-${this.pointsLost.toLocaleString()} points)${this.mutants ? `   ·   Mutants beaten: ${this.mutants}` : ''}\n` +
-                trickyLine + `\nCoins earned: ${this.coinsEarned}   ·   Daily hunt: ${fmtMin(todayMs(this.profile))} of 20:00`,
+                trickyLine + `\nCoins earned: ${this.coinsEarned}   ·   Today: ${dayParts(this.profile)}`,
           footer: 'Press SPACE to continue',
         });
         this.time.delayedCall(900, () => { this.overReady = true; });
@@ -1461,7 +1940,7 @@
       Sfx.init();
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const k = e.key;
-      if ([' ', '/', "'", 'Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) e.preventDefault();
+      if ([' ', '/', "'", 'Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) e.preventDefault();
       switch (this.state) {
         case 'profiles':
           if (/^[1-4]$/.test(k)) this.pickProfile(+k - 1);
@@ -1476,6 +1955,7 @@
         case 'modes':
           if (k === 'Escape') { if (this.practice) this.togglePractice(); else this.showProfiles(); }
           else if (/^[1-5]$/.test(k)) this.pickMode(MODE_ORDER[+k - 1]);
+          else if ((k === 'm' || k === 'M') && !this.practice) { Sfx.click(); this.showMath(); }
           else if (k === 'p' || k === 'P') this.togglePractice();
           else if (k === 'c' || k === 'C') this.toggleCaps();
           else if ((k === 's' || k === 'S') && !this.practice) this.showShop();
@@ -1483,7 +1963,7 @@
         case 'intermission':
           if (k === ' ') this.beginWave();
           else if (k === 'Escape') this.quitToModes();
-          else if ((k === 'ArrowRight' || k === 'ArrowLeft') && this.wave === this.startWave && this.kills === 0) {
+          else if ((k === 'ArrowRight' || k === 'ArrowLeft') && this.wave === this.startWave && this.kills === 0 && this.modeKey !== 'math') {
             this.wave = Phaser.Math.Clamp(this.wave + (k === 'ArrowRight' ? 1 : -1), 1, 30); this.startWave = this.wave;
             this.introWave(null);
           }
@@ -1503,11 +1983,26 @@
           return;
         }
         case 'over':
-          if (k === ' ' && this.overReady) this.showModes();
+          if (k === ' ' && this.overReady) { if (this.modeKey === 'math') this.showMath(); else this.showModes(); }
+          return;
+        case 'mathmenu': {
+          const s = /^[1-9]$/.test(k) && MX.STAGES[+k - 1];
+          if (k === 'Escape') this.showModes();
+          else if (k === ' ' || k === 'Enter') this.startMath(MX.smartStage(this.profile));
+          else if (s) { if (s.id <= MX.ensure(this.profile).open) this.startMath(s.id); else this.mathLocked(s); }
+          return;
+        }
+        case 'mathcard':
+          this.cardKey(k);
+          return;
+        case 'mathdone':
+          if (k === ' ') this.mathIntro(null);
+          else if (k === 'Escape') this.quitToModes();
           return;
       }
       if (this.state !== 'playing') return;
       if (k === 'Escape') { this.pause(); return; }
+      if (this.modeKey === 'math') { this.mathKey(k); return; }
       if (k === 'Backspace') {
         if (this.target) { const t = this.target; t.typed = 0; this.target = null; this.redrawLabel(t); }
         return;
@@ -1628,6 +2123,7 @@
 
     // ---------- Enemies ----------
     pickWord(single = false) {
+      if (this.modeKey === 'math') return this.mathFact(single ? 'rule' : this.cfg.kind);
       const cfg = this.cfg;
       const used = new Set(this.vamps.filter(v => !v.dead).map(v => v.word[0]));
       let w = 'f';
@@ -1700,16 +2196,23 @@
     attackX(v) { return ATTACK_X + (v.boss ? 50 : 0); }
 
     spawnVamp(type, wordIn, queue, opts = {}) {
+      let fact = null;
+      if (this.modeKey === 'math') {   // math enemies carry a fact; the "word" is its answer
+        fact = wordIn && typeof wordIn === 'object' ? wordIn : this.mathFact(this.cfg.kind);
+        wordIn = String(fact.ans);
+        type = type || this.mathType(fact);
+      }
       const word = wordIn || this.pickWord();
       type = type || this.pickType(word);
       const T = TYPES[type], sc = T.scale || 2;
       if (T.shield && !queue) queue = [this.pickWord()];   // the shield word comes first, then the guard's own
       const lane = opts.lane != null ? opts.lane : T.boss ? 1 : this.pickLane(), y = LANES[lane];
-      const x0 = opts.x != null ? opts.x : T.boss ? W - 170 : SPAWN_X;
+      const x0 = opts.x != null ? opts.x : T.boss ? W - 170 : fact ? W + 20 : SPAWN_X;   // math enemies step in sooner: their problem is already showing
       const v = {
         type, T, word, display: word, typed: 0, lane, x: x0, y,
         speed: this.cfg.speed * this.pace * T.speed * Phaser.Math.FloatBetween(0.92, 1.08),
         walk: Math.random() * 6, dead: false, shakeUntil: 0, holdUntil: 0, boss: !!T.boss, queue: queue || [], minion: !!opts.extra,
+        fact, buf: '', unit: fact ? 'fact' : null, aimAt: this.time.now,
       };
       v.shadow = this.add.ellipse(v.x, y, T.boss ? 110 * sc / 2 : 70, T.flying ? 10 : 16, 0x000000, T.flying ? 0.2 : 0.35).setDepth(y - 1);
       v.spr = this.add.sprite(v.x, y, T.sheet, 0).setOrigin(T.ox, T.oy).setScale(sc).setDepth(y);
@@ -1735,6 +2238,20 @@
     spawnBoss() {
       let type = BOSS_FOR_SCENE[this.sceneId];
       if (!TYPES[type] || !this.textures.exists(TYPES[type].sheet)) type = 'count';
+      if (this.modeKey === 'math') {   // a queue of this place's facts, no repeats
+        const avoid = new Set(), facts = [];
+        for (let i = 0; i < BOSS_FACTS; i++) {
+          const k = MX.pick(this.profile, { kind: 'boss', stage: this.mh.stage, avoid, today: MX.dayNum() });
+          avoid.add(k); facts.push(this.makeFact(k));
+        }
+        const v = this.spawnVamp(type, facts.shift(), facts);
+        this.banner(TYPES[type].name + '!');
+        this.burst(v.x, this.hitY(v), 30, 1.3);
+        Sfx.tone(110, 0.6, 'sawtooth', 0.06, 70); Sfx.tone(165, 0.6, 'sawtooth', 0.04, 100, 0.15);
+        this.bossCast(v);
+        Music.want('boss-fight');
+        return;
+      }
       const T = TYPES[type], words = Phaser.Utils.Array.Shuffle(this.cfg.boss.slice());
       for (let i = 0; i < (T.extraWords || 0); i++) words.push(this.cfg.words && this.cfg.words.length ? Phaser.Utils.Array.GetRandom(this.cfg.words) : this.pickWord());
       const v = this.spawnVamp(type, words.shift(), words);
@@ -1783,10 +2300,20 @@
       });
     }
     redrawLabel(v) {
-      const done = v.display.slice(0, v.typed), rest = v.display.slice(v.typed);
-      v.tDone.setText(done); v.tRest.setText(rest);
-      const wDone = done ? v.tDone.width : 0, total = wDone + v.tRest.width;
-      v.tDone.setX(-total / 2); v.tRest.setX(-total / 2 + wDone);
+      let total;
+      if (v.fact) {   // "7 × 8 = " then what has been typed, a ? while waiting, or the answer in red after a miss
+        const ans = v.reveal ? String(v.fact.ans) : v.buf || '?';
+        v.tRest.setText(`${v.fact.a} × ${v.fact.b} = `);
+        v.tDone.setText(ans).setColor(v.reveal ? '#ff9b9b' : v.buf ? '#ffcf5a' : '#8f7fb8');
+        total = v.tRest.width + v.tDone.width;
+        v.tRest.setX(-total / 2); v.tDone.setX(-total / 2 + v.tRest.width);
+      } else {
+        const done = v.display.slice(0, v.typed), rest = v.display.slice(v.typed);
+        v.tDone.setText(done); v.tRest.setText(rest);
+        const wDone = done ? v.tDone.width : 0;
+        total = wDone + v.tRest.width;
+        v.tDone.setX(-total / 2); v.tRest.setX(-total / 2 + wDone);
+      }
       const pw = Math.max(46, total + 26), ph = 46, locked = this.target === v;
       const edge = locked ? 0xffcf5a : v.T.mutant ? 0x9be15d : v.boss ? 0xd94848 : 0x7a55c8;
       const g = v.plate; g.clear();
@@ -1826,11 +2353,12 @@
         this.adjustPace(far > 0.6 ? 0.03 : far > 0.4 ? 0.012 : far < 0.2 ? -0.04 : 0);
       }
       // The Mutant is a penalty, so it gives no points or coins: the reward is getting rid of it.
-      const gain = this.practice || v.T.mutant ? 0 : Math.round((10 * v.word.length * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
+      const base = v.fact ? (v.lastFast ? 30 : 20) : 10 * v.word.length;   // a math answer under 3 seconds is worth more
+      const gain = this.practice || v.T.mutant ? 0 : Math.round((base * this.mult() + (v.boss && finishing ? 200 : 0)) * (this.caps ? CAPS_BONUS : 1));
       this.score += gain;
       Sfx.shoot();
       this.hunter.play(this.lookId + '-shoot');
-      if (finishing && !v.T.mutant) this.addCoins(v.word.length + (v.boss ? 30 : 0));
+      if (finishing && !v.T.mutant) this.addCoins((v.fact ? 2 : v.word.length) + (v.boss ? 30 : 0));
       const sx = this.boltX, sy = this.boltY, boltId = this.profile.bolt;
       const bkey = this.textures.exists('bolt-' + boltId) ? 'bolt-' + boltId : 'bolt';
       const spin = boltId === 'garlic';
@@ -1867,6 +2395,7 @@
     }
     nextBossWord(v) {
       if (!v.pendingWord) return;
+      if (v.fact) { const f = v.pendingWord; v.pendingWord = null; this.setFact(v, f); return; }
       v.word = v.display = v.pendingWord; v.pendingWord = null; v.typed = 0;
       this.redrawLabel(v);
     }
@@ -1934,6 +2463,12 @@
     }
     vampAttack(v) {
       if (this.target === v) this.target = null;
+      if (v.fact && !v.tried) this.mathAnswer(v, false, 0);
+      if (v.fact && this.cfg.kind === 'scout') {   // scouts just leave
+        v.dead = true; this.floatText(v.x, this.hitY(v) - 90, `${v.fact.a} × ${v.fact.b} = ${v.fact.ans}`, '#ff9b9b', 22);
+        this.batAway(v, 1);
+        return;
+      }
       this.hearts = Math.max(0, this.hearts - (v.boss ? 2 : 1));
       this.adjustPace(-0.15);
       this.updateHearts();
@@ -1951,6 +2486,7 @@
         this.burst(v.x, this.hitY(v), 20, 1.2);
         v.x = Math.min(SPAWN_X - 60, v.x + 560); this.nextBossWord(v);
         if (!v.T.mutant) v.typed = 0;
+        v.buf = '';
         this.redrawLabel(v);
         this.bossCast(v);
       } else {
@@ -1984,7 +2520,9 @@
       this.addPlayTime(step);
       this.updateJam(step);
       this.spawnClock -= delta;
-      if (this.spawned < this.cfg.count && this.spawnClock <= 0) {
+      const math = this.modeKey === 'math', aliveN = math ? this.vamps.filter(v => !v.dead).length : 0;
+      if (math && aliveN === 0 && this.spawnClock > 600) this.spawnClock = 600;   // fast answers bring the next one sooner
+      if (this.spawned < this.cfg.count && this.spawnClock <= 0 && (!this.cfg.max || aliveN < this.cfg.max)) {
         this.spawnVamp();
         this.spawnClock = this.cfg.gap / this.pace * Phaser.Math.FloatBetween(0.8, 1.15);
       }
@@ -2015,6 +2553,7 @@
         this.clearing = true;
         this.time.delayedCall(650, () => { this.clearing = false; this.waveCleared(); });
       }
+      if (this.state === 'playing' && math) this.mathAim();
       if (this.state === 'playing') this.updateHud();
       this.updateNextKey();
     }

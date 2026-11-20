@@ -26,7 +26,7 @@ GitHub Pages works as is: serve the repository root from the default branch.
 - **Practice mode** (press P on the hunt menu) shows the keyboard with finger colors and the next key lit up. It is always blue and earns nothing: no points, coins, unlocks, daily hunt time or best scores, and it doesn't change the weak-key stats.
 - **Capitals toggle.** Shift is required and coins pay 1.5x.
 - **Profiles** for each kid, saved in the browser on that device.
-- **Daily 20-minute hunt** with a reward.
+- **Daily hunt** with a reward: 10 minutes of typing and 10 minutes of Math Hunt.
 - **Lots of enemies.** Fledglings, armored vampires, ghouls and bats, plus wolf pups (fast), little mummies (slow), see-through ghosts that drift in bursts, shield guards (type the shield word, then theirs) and giant bats that split into two letter bats.
 - **A boss for each setting**, each with a queue of words and its own trick:
   - Count Moonfang (graveyard, garden, rooftops) pauses to cast and gets knocked back.
@@ -43,6 +43,30 @@ GitHub Pages works as is: serve the repository root from the default branch.
   - The ultimate Sunfire Champion outfit is for beating every mode with Capitals on.
 - **Seven settings, each with its own battle track.** The screen fades between waves into a new one.
 
+## Math Hunt
+
+Press **M** on the hunt menu. Each enemy carries a times-table problem like `7 × 8 = ?`. Typing the answer fires the crossbow as soon as the number matches, with no Enter needed. The crossbow always aims at the enemy closest to the hunter. Math Hunt uses the same hunters, coins and shop. It has its own 10-minute timer: a full daily hunt is 10 minutes of typing plus 10 minutes of Math Hunt.
+
+- **Every fact is tracked.** A fact and its turnaround (7 × 8 and 8 × 7) count as one. Each fact sits on one of five levels:
+
+  | Level | How a fact gets there | Comes back |
+  | --- | --- | --- |
+  | New | Not taught yet | |
+  | Learning | Just taught, missed, or right but slower than 6 seconds | The same hunt |
+  | Known | Right within 6 seconds | Next day |
+  | Fluent | Right within 3 seconds | In 3 days |
+  | Mastered | Fluent on 3 different days | In a week, then 3 weeks |
+
+- **A scouting round the first time.** It asks 18 facts from every table, easy to hard. Scouts never bite. A quick right answer marks a fact as already Fluent, and getting both the ×1 and ×10 facts right marks those whole tables as Known. Four misses in a row end it early.
+- **One hunt** is a warm-up of known facts, two learning waves and a review wave of facts due from other days, with the place's boss at the end. Then there are bonus waves for as long as the hunter lasts.
+- **New facts come 2 at a time** on a card that shows them as rows of dots. The hunter types each answer once. The ×1 and ×10 tables are taught as rules. No new facts are added while 4 or more are still being learned.
+- **Mistakes are re-taught.** A wrong answer shows the right one on the enemy for a second, then it is typed again. The same fact comes back 2 enemies later. SPACE means "I don't know" and shows the answer. 3 wrong answers in a row jam the crossbow.
+- **Slow mummies carry facts being learned, and fast wolf pups carry fluent ones.**
+- **Three places so far:** the Graveyard (×1, ×10 and ×2), the Garden (×5) and the Bat Cave (×4). Each place opens when 80% of the one before it is Known. Smart Hunt (SPACE on the math menu) picks the place to work on.
+- **A daily math goal** of 60 facts answered right is worth 50 coins.
+
+The fact engine is in `math.js` with no game code in it, so it can be checked with `node tools/test_math.js`. Math progress is saved in each profile under `math`.
+
 ## Files
 
 | Path | What it is |
@@ -52,9 +76,10 @@ GitHub Pages works as is: serve the repository root from the default branch.
 | `enemies.js` | The newer enemies and bosses (wolf pup, mummy, shield guard, ghost, the four setting bosses and the Mega Mutant) |
 | `skins.js` | Hunter and outfit sheets, bolt images and their crossbow and feet offsets |
 | `scenes.js` | The six newer settings and their ground colors |
+| `math.js` | The Math Hunt fact engine: levels, review schedule, places, lessons and fact picking |
 | `music/` | The game's music (Suno), 128 kbps MP3, loops trimmed on the beat. `tracks.json` has the exact lengths |
 | `art/` | Source PNGs from Pixellab, plus `pixellab-character-ids.json` for regenerating or adding animations |
-| `tools/` | The Python scripts used to call the Pixellab API and pack the art into the `.js` files |
+| `tools/` | The Python scripts used to call the Pixellab API and pack the art into the `.js` files, plus `test_math.js` for the fact engine |
 
 Saves live in `localStorage` under `vh-save-v1`.
 
